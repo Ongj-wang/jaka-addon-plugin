@@ -1,6 +1,6 @@
 {
     "name": "auto-settings-generator",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "displayName": "auto-settings-generator",
     "description": "auto generate .settings.json",
     "engines": {
