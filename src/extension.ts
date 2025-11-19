@@ -114,15 +114,12 @@ async function initSettingsJson() {
         try {
           existingSettings = JSON.parse(existingContent);
         } catch (parseError) {
-          vscode.window.showErrorMessage(
-            "现有 settings.json 文件不是有效的 JSON 格式"
-          );
           return;
         }
       }
 
       // 合并配置（新配置会覆盖同名的旧配置）
-      const mergedSettings = { ...existingSettings, ...defaultSettings };
+      const mergedSettings = {  ...defaultSettings, ...existingSettings };
 
       // 写入合并后的配置
       fs.writeFileSync(settingsPath, JSON.stringify(mergedSettings, null, 4));
@@ -153,7 +150,6 @@ async function updateFilesExclude(enabled: boolean, specificItems?: string[]) {
   const vscodeFolder = path.join(rootPath, ".vscode");
   const settingsPath = path.join(vscodeFolder, "settings.json");
 
-  // 检查 settings.json 是否存在
   initSettingsJson();
 
   try {
