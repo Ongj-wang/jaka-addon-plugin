@@ -1,0 +1,46 @@
+{
+    "name": "auto-settings-generator",
+    "version": "0.0.1",
+    "displayName": "auto-settings-generator",
+    "description": "auto generate .settings.json",
+    "engines": {
+        "vscode": "^1.70.0"
+    },
+    "main": "./out/extension.js",
+    "activationEvents": [
+   
+    ],
+    "contributes": {
+        "commands": [
+            {
+                "command": "extension.generateSettingsJson",
+                "title": "format settings.json"
+            },
+                        {
+                "command": "extension.enableFilesExclude",
+                "title": "enableFilesExclude"
+            },
+            {
+                "command": "extension.disableFilesExclude",
+                "title": "disableFilesExclude"
+            },{
+                "command": "extension.enableAddonFilesExclude",
+                "title": "enableAddonFilesExclude"
+            }
+        ]
+    },
+    "devDependencies": {
+        "@types/node": "^18.20.6",
+        "@types/vscode": "^1.70.0",
+        "typescript": "^5.9.3"
+    },
+    "scripts": {
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./"
+    },
+    "repository":{
+        "type": "git",
+        "url":"https://gitee.com/wanghonejie/auto-settings-generator.git"
+    },
+    "license": "MIT"
+}
