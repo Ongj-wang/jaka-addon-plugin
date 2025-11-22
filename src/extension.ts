@@ -119,7 +119,7 @@ async function initSettingsJson() {
       }
 
       // 合并配置（新配置会覆盖同名的旧配置）
-      const mergedSettings = {  ...defaultSettings, ...existingSettings };
+      const mergedSettings = { ...defaultSettings, ...existingSettings };
 
       // 写入合并后的配置
       fs.writeFileSync(settingsPath, JSON.stringify(mergedSettings, null, 4));
