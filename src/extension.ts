@@ -49,11 +49,20 @@ export function activate(context: vscode.ExtensionContext) {
       initAddonFramework();
     }
   );
+
+  // 创建addon包命令
+  const buildAddonPackage = vscode.commands.registerCommand(
+    "extension.buildAddon",
+    async () => {
+      buildAddon();
+    }
+  );
   context.subscriptions.push(disposable);
   context.subscriptions.push(enableFilesExclude);
   context.subscriptions.push(disableFilesExclude);
   context.subscriptions.push(enableAddonFilesExclude);
   context.subscriptions.push(addonFramework);
+  context.subscriptions.push(buildAddonPackage);
 }
 
 // 初始化settings.json的辅助函数
@@ -225,7 +234,7 @@ async function updateFilesExclude(enabled: boolean, specificItems?: string[]) {
     vscode.window.showErrorMessage(`操作失败: ${err}`);
   }
 }
-
+// 创建addon框架
 async function initAddonFramework() {
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders || workspaceFolders.length === 0) {
@@ -606,6 +615,155 @@ def create_logger(name, owner=None):
     path.join(rootPath, "package_log_pro.json"),
     JSON.stringify(package_setting, null, 4)
   );
+}
+
+// 打包addon指令辅助函数
+async function buildAddon() {
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders || workspaceFolders.length === 0) {
+    vscode.window.showErrorMessage("请先打开一个工作区（Workspace）");
+    return;
+  }
+  const rootPath = workspaceFolders[0].uri.fsPath;
+  if (!fs.existsSync(path.join(rootPath, "package_log_pro.json"))) {
+    vscode.window.showErrorMessage("缺少打包配置文件！");
+    return;
+  }
+
+  const package_setting = JSON.parse(
+    fs.readFileSync(path.join(rootPath, "package_log_pro.json"), "utf-8")
+  );
+
+  // 创建打包输出目录
+  const OutputDir = path.join(rootPath, package_setting.output);
+  console.log("OutputDir: ", OutputDir);
+  if (!fs.existsSync(OutputDir)) {
+    fs.mkdirSync(OutputDir);
+  }
+  const PackageDir = path.join(OutputDir, package_setting.name);
+  if (fs.existsSync(PackageDir)) {
+    fs.rmSync(PackageDir, { recursive: true });
+  }
+  fs.mkdirSync(PackageDir);
+
+  // 复制package_setting["no_transform"]中的文件到PackageDir路径下面
+  copyItem(package_setting["no_transform"], rootPath, PackageDir);
+  copyItem(package_setting["transform"], rootPath, PackageDir);
+
+  // 将PackageDir打包成tar.gz压缩包
+  try {
+    // 动态导入 tar 模块，避免类型检查问题
+    const addon_config = fs.readFileSync(
+      path.join(rootPath, package_setting.addon_config),
+      "utf-8"
+    );
+    const version_match = addon_config.match(/version\s*=\s*"(.+?)"\n/);
+    const addon_version = version_match ? version_match[1] : "1.0";
+    const tar = require("tar");
+    const projectName = package_setting.name;
+    const tarGzFileName = `${projectName}_v${addon_version}.tar.gz`;
+    const tarGzFilePath = path.join(OutputDir, tarGzFileName);
+
+    // 创建 tar.gz 文件
+    await tar.c(
+      {
+        gzip: true,
+        file: tarGzFilePath,
+        cwd: OutputDir,
+      },
+      [projectName]
+    );
+
+    vscode.window.showInformationMessage(
+      `AddOn 压缩包已创建: ${tarGzFilePath}`
+    );
+  } catch (err) {
+    vscode.window.showErrorMessage(`创建压缩包失败: ${err}`);
+    console.error(err); // 添加详细错误日志
+  }
+}
+
+function copyItem(
+  itemlist: Array<{ source: string; target: string }>,
+  rootPath: string,
+  PackageDir: string
+) {
+  if (itemlist && Array.isArray(itemlist)) {
+    for (const item of itemlist) {
+      const sourcePath = path.join(rootPath, item.source);
+      const destPath = path.join(
+        PackageDir,
+        item.target ? item.target : item.source
+      );
+
+      if (fs.existsSync(sourcePath)) {
+        // 如果是目录，递归复制整个目录
+        if (fs.statSync(sourcePath).isDirectory()) {
+          // 确保目标目录存在
+          const destDir = path.dirname(destPath);
+          if (!fs.existsSync(destDir)) {
+            fs.mkdirSync(destDir, { recursive: true });
+          }
+          copyDirectory(sourcePath, destPath);
+        } else {
+          // 如果是文件，直接复制
+          // 确保目标目录存在
+          const destDir = path.dirname(destPath);
+          if (!fs.existsSync(destDir)) {
+            fs.mkdirSync(destDir, { recursive: true });
+          }
+          fs.copyFileSync(sourcePath, destPath);
+        }
+        console.log(`已复制: ${item.source}`);
+      } else {
+        console.warn(`文件或目录不存在: ${item.source}`);
+      }
+    }
+    // vscode.window.showInformationMessage(
+    //   `AddOn 文件已成功复制到: ${PackageDir}`
+    // );
+  }
+}
+// 辅助函数：递归复制目录
+function copyDirectory(src: string, dest: string) {
+  if (!fs.existsSync(dest)) {
+    fs.mkdirSync(dest, { recursive: true });
+  }
+
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+
+  for (const entry of entries) {
+    // 跳过需要忽略的文件和文件夹
+    if (shouldSkipEntry(entry.name)) {
+      continue;
+    }
+
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      copyDirectory(srcPath, destPath);
+    } else {
+      // 跳过 .pyc 文件
+      if (!shouldSkipFile(entry.name)) {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    }
+  }
+}
+
+// 判断是否应该跳过的文件夹或文件
+function shouldSkipEntry(name: string): boolean {
+  // 跳过特定的文件夹
+  const skipDirs = [".git", "__pycache__", ".svn", ".hg", "node_modules"];
+  return skipDirs.includes(name);
+}
+
+// 判断是否应该跳过的文件
+function shouldSkipFile(name: string): boolean {
+  // 跳过特定的文件类型
+  const skipExtensions = [".pyc", ".pyo", ".pyd", ".DS_Store", "Thumbs.db"];
+  return skipExtensions.some((ext) => name.endsWith(ext));
 }
 
 export function deactivate() {}
