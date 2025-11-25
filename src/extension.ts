@@ -657,8 +657,12 @@ async function buildAddon() {
       path.join(rootPath, package_setting.addon_config),
       "utf-8"
     );
-    const version_match = addon_config.match(/version\s*=\s*"(.+?)"\n/);
-    const addon_version = version_match ? version_match[1] : "1.0";
+    const version_match = addon_config.match(/version\s*=\s*(.+?)\n/m);
+    const addon_version = (version_match ? version_match[1] : "1.0").replace(
+      ".",
+      "_"
+    );
+    console.log("version:", addon_version);
     const tar = require("tar");
     const projectName = package_setting.name;
     const tarGzFileName = `${projectName}_v${addon_version}.tar.gz`;
@@ -677,6 +681,7 @@ async function buildAddon() {
     vscode.window.showInformationMessage(
       `AddOn 压缩包已创建: ${tarGzFilePath}`
     );
+    fs.rmSync(PackageDir, { recursive: true, force: true });
   } catch (err) {
     vscode.window.showErrorMessage(`创建压缩包失败: ${err}`);
     console.error(err); // 添加详细错误日志

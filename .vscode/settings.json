@@ -1,0 +1,49 @@
+{
+    "jaka-jks": {
+        "jks-version": 1
+    },
+    "[json]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff"
+    },
+    "[xml]": {
+        "editor.defaultFormatter": "redhat.vscode-xml"
+    },
+    "[javascript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[typescript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[css]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.convertImportFormat": "always",
+        "source.fixAll": "always",
+        "source.fixAll.eslint": "always",
+        "source.fixAll.markdownlint": "always",
+        "source.fixAll.pylance": "always",
+        "source.fixAll.ruff": "always",
+        "source.organizeImports": "always",
+        "source.organizeImports.ruff": "always",
+        "source.organizeLinkDefinitions": "always",
+        "source.sort.json": "always",
+        "source.unusedImports": "never"
+    },
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true,
+        "**/__pychace__": true,
+        "**/**.pyc": true,
+        ".python-version": true,
+        ".venv": true,
+        "uv.lock": true
+    }
+}
