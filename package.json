@@ -4,37 +4,51 @@
     "commands": [
       {
         "command": "extension.generateSettingsJson",
-        "title": "format settings.json"
+        "description": "生成并格式化 .settings.json 配置文件",
+        "shortTitle": "format settings",
+        "title": "auto-settings:format settings.json"
       },
       {
         "command": "extension.enableFilesExclude",
-        "title": "enableFilesExclude"
+        "description": "启用文件排除规则",
+        "shortTitle": "hide files",
+        "title": "auto-settings:enableFilesExclude"
       },
       {
         "command": "extension.disableFilesExclude",
-        "title": "disableFilesExclude"
+        "description": "禁用文件排除规则",
+        "title": "auto-settings:disableFilesExclude"
       },
       {
         "command": "extension.enableAddonFilesExclude",
-        "title": "enableAddonFilesExclude"
+        "description": "启用控制器环境中的addon文件排除规则",
+        "title": "auto-settings:enableAddonFilesExclude"
       },
       {
         "command": "extension.CreatePyaddon",
-        "title": "make new addon"
+        "description": "创建一个 AddOn 插件项目",
+        "title": "auto-settings:make new addon"
       },
       {
         "command": "extension.buildAddon",
-        "title": "build addon"
+        "title": "auto-setting:build addon"
+      },
+      {
+        "command": "extension.MakeCustomPorgrams",
+        "title": "auto-setting:make custom porgrams",
+        "shortTitle": "make custom porgrams"        
       }
     ]
   },
   "dependencies": {
-    "tar": "^7.5.2"
+    "tar": "^7.5.2",
+    "xml2js": "^0.6.2"
   },
   "description": "auto generate .settings.json",
   "devDependencies": {
     "@types/node": "^24.10.1",
     "@types/vscode": "^1.70.0",
+    "@types/xml2js": "^0.4.14",
     "typescript": "^5.9.3"
   },
   "displayName": "auto-settings-generator",

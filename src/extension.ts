@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
+import { drawCommandBlock } from "./CommendGenerte";
 
 export function activate(context: vscode.ExtensionContext) {
   const disposable = vscode.commands.registerCommand(
@@ -57,12 +58,23 @@ export function activate(context: vscode.ExtensionContext) {
       buildAddon();
     }
   );
+
+  //
+  const MakeCustomPorgrams = vscode.commands.registerCommand(
+    "extension.MakeCustomPorgrams",
+    async () => {
+      make_custom_porgrams();
+    }
+  );
   context.subscriptions.push(disposable);
   context.subscriptions.push(enableFilesExclude);
   context.subscriptions.push(disableFilesExclude);
-  context.subscriptions.push(enableAddonFilesExclude);
-  context.subscriptions.push(addonFramework);
-  context.subscriptions.push(buildAddonPackage);
+  context.subscriptions.push(
+    enableAddonFilesExclude,
+    addonFramework,
+    buildAddonPackage,
+    MakeCustomPorgrams
+  );
 }
 
 // 初始化settings.json的辅助函数
@@ -770,5 +782,37 @@ function shouldSkipFile(name: string): boolean {
   const skipExtensions = [".pyc", ".pyo", ".pyd", ".DS_Store", "Thumbs.db"];
   return skipExtensions.some((ext) => name.endsWith(ext));
 }
+//
+async function make_custom_porgrams() {
+  if (!vscode.workspace.workspaceFolders) {
+    vscode.window.showErrorMessage("请先打开一个工作区（Workspace）");
+    return;
+  }
+  const addonProFiles = await findAddonProFiles();
+  if (addonProFiles.length === 0) {
+    vscode.window.showErrorMessage("未找到 .addonpro 文件");
+    return;
+  }
+  drawCommandBlock(addonProFiles[0].fsPath);
+}
 
+// 在工作区中查找 .addonpro 文件
+async function findAddonProFiles(): Promise<vscode.Uri[]> {
+  if (
+    !vscode.workspace.workspaceFolders ||
+    vscode.workspace.workspaceFolders.length === 0
+  ) {
+    vscode.window.showErrorMessage("请先打开一个工作区（Workspace）");
+    return [];
+  }
+
+  try {
+    // 使用 vscode.workspace.findFiles 查找所有 .addonpro 文件
+    const addonProFiles = await vscode.workspace.findFiles("**/*.addonpro");
+    return addonProFiles;
+  } catch (error) {
+    vscode.window.showErrorMessage(`查找 .addonpro 文件时出错: ${error}`);
+    return [];
+  }
+}
 export function deactivate() {}
