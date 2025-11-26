@@ -665,6 +665,32 @@ async function buildAddon() {
   copyItem(package_setting["no_transform"], rootPath, PackageDir);
   copyItem(package_setting["transform"], rootPath, PackageDir);
 
+  // 创建py转二进制文件列表
+  let tansform_list: string[] = [];
+  if (Array.isArray(package_setting.transform)) {
+    for (const trans of package_setting.transform) {
+      if (trans && typeof trans === "object" && trans.source) {
+        const folder_path = path.join(rootPath, trans.source);
+        tansform_list.push(...findPythonFilesExcludingInit(folder_path));
+      }
+    }
+  }
+  fs.writeFileSync(
+    path.join(PackageDir, "transform_files.txt"),
+    tansform_list.join(",")
+  );
+  fs.writeFileSync(
+    path.join(PackageDir, "setup.py"),
+    `from distutils.core import setup
+from Cython.Build import cythonize
+
+with open("./transform_files.txt") as f:
+    files = f.read().strip('\\n').split(",")
+for file in files:
+    if ".py" in file:
+        setup(ext_modules = cythonize(file))`
+  );
+
   // 检查是否有自定义指令配置文件
   const addonProFiles = await findAddonProFiles("**/*.addonpro");
   if (addonProFiles.length > 0) {
@@ -708,7 +734,56 @@ async function buildAddon() {
     console.error(err); // 添加详细错误日志
   }
 }
+/**
+ * 在指定文件夹中查找除 __init__.py 以外的所有 .py 文件
+ * @param folderPath 要搜索的文件夹路径
+ * @returns 找到的 Python 文件路径数组
+ */
+function findPythonFilesExcludingInit(folderPath: string): string[] {
+  const pythonFiles: string[] = [];
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders || workspaceFolders.length === 0) {
+    vscode.window.showErrorMessage("请先打开一个工作区（Workspace）");
+    return [];
+  }
+  const rootPath = workspaceFolders[0].uri.fsPath;
+  // 检查文件夹是否存在
+  if (!fs.existsSync(folderPath)) {
+    return [];
+  }
+  // 如果传入的路径是文件，则直接返回
+  if (fs.lstatSync(folderPath).isFile()) {
+    return [folderPath];
+  }
 
+  try {
+    // 读取文件夹内容
+    const entries = fs.readdirSync(folderPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = path.join(folderPath, entry.name);
+
+      // 如果是文件且以 .py 结尾，但不是 __init__.py
+      if (
+        entry.isFile() &&
+        entry.name.endsWith(".py") &&
+        entry.name !== "__init__.py"
+      ) {
+        // 将文件相对于工作区的路径加入结果数组
+        pythonFiles.push(fullPath.replace(rootPath, ".").replace(/\\/g, "/"));
+      }
+      // 如果是目录，则递归搜索（可选）
+      else if (entry.isDirectory()) {
+        // 可以根据需要决定是否递归搜索子目录
+        const subDirFiles = findPythonFilesExcludingInit(fullPath);
+        pythonFiles.push(...subDirFiles);
+      }
+    }
+  } catch (error) {
+    vscode.window.showErrorMessage(`搜索 Python 文件时出错: ${error}`);
+  }
+  return pythonFiles;
+}
 function copyItem(
   itemlist: Array<{ source: string; target: string }>,
   rootPath: string,
