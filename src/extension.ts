@@ -619,9 +619,12 @@ def create_logger(name, owner=None):
     ],
   };
   if (add_customprogramsFlag) {
-    package_setting["no_transform"].push({ source: "server" });
-    package_setting["no_transform"].push({ source: "logic" });
-    package_setting["no_transform"].push({ source: "LoggingFormatter" });
+    package_setting["no_transform"].push(
+      { source: "server" },
+      { source: "logic" },
+      { source: "LoggingFormatter" },
+      { source: "OldToNew_Customprograms.json" }
+    );
   }
   fs.writeFileSync(
     path.join(rootPath, "package_log_pro.json"),
@@ -661,6 +664,12 @@ async function buildAddon() {
   // 复制package_setting["no_transform"]中的文件到PackageDir路径下面
   copyItem(package_setting["no_transform"], rootPath, PackageDir);
   copyItem(package_setting["transform"], rootPath, PackageDir);
+
+  // 检查是否有自定义指令配置文件
+  const addonProFiles = await findAddonProFiles("**/*.addonpro");
+  if (addonProFiles.length > 0) {
+    await make_custom_porgrams();
+  }
 
   // 将PackageDir打包成tar.gz压缩包
   try {
@@ -788,7 +797,7 @@ async function make_custom_porgrams() {
     vscode.window.showErrorMessage("请先打开一个工作区（Workspace）");
     return;
   }
-  const addonProFiles = await findAddonProFiles();
+  const addonProFiles = await findAddonProFiles("**/*.addonpro");
   if (addonProFiles.length === 0) {
     vscode.window.showErrorMessage("未找到 .addonpro 文件");
     return;
@@ -797,7 +806,7 @@ async function make_custom_porgrams() {
 }
 
 // 在工作区中查找 .addonpro 文件
-async function findAddonProFiles(): Promise<vscode.Uri[]> {
+async function findAddonProFiles(filePattern: string): Promise<vscode.Uri[]> {
   if (
     !vscode.workspace.workspaceFolders ||
     vscode.workspace.workspaceFolders.length === 0
@@ -808,7 +817,7 @@ async function findAddonProFiles(): Promise<vscode.Uri[]> {
 
   try {
     // 使用 vscode.workspace.findFiles 查找所有 .addonpro 文件
-    const addonProFiles = await vscode.workspace.findFiles("**/*.addonpro");
+    const addonProFiles = await vscode.workspace.findFiles(filePattern);
     return addonProFiles;
   } catch (error) {
     vscode.window.showErrorMessage(`查找 .addonpro 文件时出错: ${error}`);
