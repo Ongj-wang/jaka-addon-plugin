@@ -64,6 +64,9 @@ for file in files:
     if ".py" in file:
         setup(ext_modules = cythonize(file))`
   );
+  if (package_setting.clear_code) {
+    removeCommentsAndReplacePrint(OutputDir);
+  }
 
   await createTarGz(rm_output);
 }
@@ -129,7 +132,7 @@ async function createTarGz(rm_output: boolean) {
     );
     const version_match = addon_config.match(/version\s*=\s*(.+?)\n/m);
     const addon_version = (version_match ? version_match[1] : "1.0").replace(
-      ".",
+      /\./g,
       "_"
     );
     const tar = require("tar");
@@ -488,6 +491,194 @@ async function executeBuildCommandOnRobot(
   } catch (error) {
     vscode.window.showErrorMessage(`SSH 连接或命令执行失败: ${error}`);
   }
+}
+/**
+ * 递归遍历目录下所有py文件，删除注释并将print()替换为pass
+ * @param directoryPath 目标目录路径
+ */
+function removeCommentsAndReplacePrint(directoryPath: string): void {
+  // 检查目录是否存在
+  if (!fs.existsSync(directoryPath)) {
+    console.warn(`目录不存在: ${directoryPath}`);
+    return;
+  }
+
+  try {
+    const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = path.join(directoryPath, entry.name);
+
+      // 如果是.py文件，则处理文件内容
+      if (entry.isFile() && entry.name.endsWith(".py")) {
+        processPythonFile(fullPath);
+      }
+      // 如果是目录，则递归处理
+      else if (entry.isDirectory() && !shouldSkipEntry(entry.name)) {
+        removeCommentsAndReplacePrint(fullPath);
+      }
+    }
+  } catch (error) {
+    vscode.window.showErrorMessage(`处理Python文件时出错: ${error}`);
+  }
+}
+
+/**
+ * 处理单个Python文件：删除注释并将print()替换为pass
+ * @param filePath Python文件路径
+ */
+function processPythonFile(filePath: string): void {
+  try {
+    // 读取文件内容
+    let content = fs.readFileSync(filePath, "utf-8");
+
+    // 删除文档字符串
+    content = removeDocstrings(content);
+
+    // 按行分割处理
+    const lines = content.split("\n");
+    const processedLines: string[] = [];
+
+    for (const line of lines) {
+      let processedLine = line;
+
+      // 移除行内注释（#后面的内容），但保留字符串中的#
+      processedLine = removeInlineComments(processedLine);
+
+      // 将print()语句替换为pass
+      processedLine = replacePrintWithPass(processedLine);
+
+      processedLines.push(processedLine);
+    }
+
+    // 过滤掉只有注释的行
+    const filteredLines = processedLines.filter((line) => !isOnlyComment(line));
+
+    // 删除空行（连续的空行只保留一个）
+    const noEmptyLines = removeExtraEmptyLines(filteredLines);
+
+    // 写回文件
+    fs.writeFileSync(filePath, noEmptyLines.join("\n"), "utf-8");
+
+    console.log(`已处理文件: ${filePath}`);
+  } catch (error) {
+    console.error(`处理文件 ${filePath} 时出错:`, error);
+  }
+}
+/**
+ * 移除文档字符串（多行注释）
+ * @param content 文件内容
+ * @returns 移除文档字符串后的内容
+ */
+function removeDocstrings(content: string): string {
+  // 移除模块级别的文档字符串（文件开头的三引号字符串）
+  content = content.replace(
+    /^\s*(?:\"\"\"[\s\S]*?\"\"\"|'''[\s\S]*?''')\s*\n?/,
+    ""
+  );
+
+  // 移除类和函数定义后的文档字符串
+  content = content.replace(
+    /\b(?:class|def)\s+\w+\s*(?:\(.*?\))?\s*:\s*\n\s*(?:\"\"\"[\s\S]*?\"\"\"|'''[\s\S]*?''')/g,
+    (match) => {
+      // 保留类或函数定义，只移除文档字符串
+      return match.replace(/(?:\"\"\"[\s\S]*?\"\"\"|'''[\s\S]*?''')/, "");
+    }
+  );
+
+  return content;
+}
+/**
+ * 移除行内注释，但保留字符串中的#
+ * @param line 代码行
+ * @returns 处理后的代码行
+ */
+function removeInlineComments(line: string): string {
+  let result = "";
+  let inString = false;
+  let stringChar = "";
+  let i = 0;
+
+  while (i < line.length) {
+    const char = line[i];
+    const nextChar = i + 1 < line.length ? line[i + 1] : "";
+
+    // 检测字符串开始/结束
+    if ((char === '"' || char === "'") && (i === 0 || line[i - 1] !== "\\")) {
+      if (!inString) {
+        inString = true;
+        stringChar = char;
+      } else if (char === stringChar) {
+        inString = false;
+        stringChar = "";
+      }
+    }
+
+    // 如果不在字符串中且遇到#，则截断此行
+    if (!inString && char === "#") {
+      result = line.substring(0, i).trimEnd();
+      break;
+    }
+
+    i++;
+  }
+
+  return result || line;
+}
+
+/**
+ * 判断一行是否仅为注释
+ * @param line 代码行
+ * @returns 是否仅为注释
+ */
+function isOnlyComment(line: string): boolean {
+  return line.trim().startsWith("#");
+}
+
+/**
+ * 将print()语句替换为pass
+ * @param line 代码行
+ * @returns 处理后的代码行
+ */
+function replacePrintWithPass(line: string): string {
+  // 匹配print语句的正则表达式
+  const printRegex = /^\s*print\s*\(/;
+
+  // 如果是print语句开头，则替换为pass
+  if (printRegex.test(line)) {
+    const indent = line.match(/^\s*/)?.[0] || "";
+    return `${indent}pass`;
+  }
+
+  return line;
+}
+/**
+ * 删除多余的空行，连续的空行只保留一个
+ * @param lines 代码行数组
+ * @returns 处理后的代码行数组
+ */
+function removeExtraEmptyLines(lines: string[]): string[] {
+  const result: string[] = [];
+  let previousLineEmpty = false;
+
+  for (const line of lines) {
+    const isCurrentLineEmpty = line.trim() === "";
+
+    // 如果当前行为空行，且上一行不为空行，则添加空行
+    if (isCurrentLineEmpty) {
+      if (!previousLineEmpty) {
+        result.push("");
+        previousLineEmpty = true;
+      }
+      // 如果连续空行，则跳过
+    } else {
+      // 非空行直接添加
+      result.push(line);
+      previousLineEmpty = false;
+    }
+  }
+
+  return result;
 }
 
 /** *
