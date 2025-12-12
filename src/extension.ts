@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { drawCommandBlock } from "./CommendGenerte";
+import { buildAddon, release_build } from "./buildMethods";
 
 export function activate(context: vscode.ExtensionContext) {
   const disposable = vscode.commands.registerCommand(
@@ -55,6 +56,11 @@ export function activate(context: vscode.ExtensionContext) {
   const buildAddonPackage = vscode.commands.registerCommand(
     "extension.buildAddon",
     async () => {
+      // 检查是否有自定义指令配置文件
+      const addonProFiles = await findAddonProFiles("**/*.addonpro");
+      if (addonProFiles.length > 0) {
+        await make_custom_porgrams();
+      }
       buildAddon();
     }
   );
@@ -66,6 +72,13 @@ export function activate(context: vscode.ExtensionContext) {
       make_custom_porgrams();
     }
   );
+
+  const BuildRelaseAddon = vscode.commands.registerCommand(
+    "extension.BuildRelaseAddon",
+    async () => {
+      await release_build();
+    }
+  );
   context.subscriptions.push(disposable);
   context.subscriptions.push(enableFilesExclude);
   context.subscriptions.push(disableFilesExclude);
@@ -73,7 +86,8 @@ export function activate(context: vscode.ExtensionContext) {
     enableAddonFilesExclude,
     addonFramework,
     buildAddonPackage,
-    MakeCustomPorgrams
+    MakeCustomPorgrams,
+    BuildRelaseAddon
   );
 }
 
@@ -623,7 +637,7 @@ def create_logger(name, owner=None):
       { source: "server" },
       { source: "logic" },
       { source: "LoggingFormatter" },
-      { source: "OldToNew_Customprograms.json" }
+      { source: "OldToNew_CustomPrograms.json" }
     );
   }
   fs.writeFileSync(
@@ -632,240 +646,6 @@ def create_logger(name, owner=None):
   );
 }
 
-// 打包addon指令辅助函数
-async function buildAddon() {
-  const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (!workspaceFolders || workspaceFolders.length === 0) {
-    vscode.window.showErrorMessage("请先打开一个工作区（Workspace）");
-    return;
-  }
-  const rootPath = workspaceFolders[0].uri.fsPath;
-  if (!fs.existsSync(path.join(rootPath, "package_log_pro.json"))) {
-    vscode.window.showErrorMessage("缺少打包配置文件！");
-    return;
-  }
-
-  const package_setting = JSON.parse(
-    fs.readFileSync(path.join(rootPath, "package_log_pro.json"), "utf-8")
-  );
-
-  // 创建打包输出目录
-  const OutputDir = path.join(rootPath, package_setting.output);
-  console.log("OutputDir: ", OutputDir);
-  if (!fs.existsSync(OutputDir)) {
-    fs.mkdirSync(OutputDir);
-  }
-  const PackageDir = path.join(OutputDir, package_setting.name);
-  if (fs.existsSync(PackageDir)) {
-    fs.rmSync(PackageDir, { recursive: true });
-  }
-  fs.mkdirSync(PackageDir);
-
-  // 复制package_setting["no_transform"]中的文件到PackageDir路径下面
-  copyItem(package_setting["no_transform"], rootPath, PackageDir);
-  copyItem(package_setting["transform"], rootPath, PackageDir);
-
-  // 创建py转二进制文件列表
-  let tansform_list: string[] = [];
-  if (Array.isArray(package_setting.transform)) {
-    for (const trans of package_setting.transform) {
-      if (trans && typeof trans === "object" && trans.source) {
-        const folder_path = path.join(rootPath, trans.source);
-        tansform_list.push(...findPythonFilesExcludingInit(folder_path));
-      }
-    }
-  }
-  fs.writeFileSync(
-    path.join(PackageDir, "transform_files.txt"),
-    tansform_list.join(",")
-  );
-  fs.writeFileSync(
-    path.join(PackageDir, "setup.py"),
-    `from distutils.core import setup
-from Cython.Build import cythonize
-
-with open("./transform_files.txt") as f:
-    files = f.read().strip('\\n').split(",")
-for file in files:
-    if ".py" in file:
-        setup(ext_modules = cythonize(file))`
-  );
-
-  // 检查是否有自定义指令配置文件
-  const addonProFiles = await findAddonProFiles("**/*.addonpro");
-  if (addonProFiles.length > 0) {
-    await make_custom_porgrams();
-  }
-
-  // 将PackageDir打包成tar.gz压缩包
-  try {
-    // 动态导入 tar 模块，避免类型检查问题
-    const addon_config = fs.readFileSync(
-      path.join(rootPath, package_setting.addon_config),
-      "utf-8"
-    );
-    const version_match = addon_config.match(/version\s*=\s*(.+?)\n/m);
-    const addon_version = (version_match ? version_match[1] : "1.0").replace(
-      ".",
-      "_"
-    );
-    console.log("version:", addon_version);
-    const tar = require("tar");
-    const projectName = package_setting.name;
-    const tarGzFileName = `${projectName}_v${addon_version}.tar.gz`;
-    const tarGzFilePath = path.join(OutputDir, tarGzFileName);
-
-    // 创建 tar.gz 文件
-    await tar.c(
-      {
-        gzip: true,
-        file: tarGzFilePath,
-        cwd: OutputDir,
-      },
-      [projectName]
-    );
-
-    vscode.window.showInformationMessage(
-      `AddOn 压缩包已创建: ${tarGzFilePath}`
-    );
-    fs.rmSync(PackageDir, { recursive: true, force: true });
-  } catch (err) {
-    vscode.window.showErrorMessage(`创建压缩包失败: ${err}`);
-    console.error(err); // 添加详细错误日志
-  }
-}
-/**
- * 在指定文件夹中查找除 __init__.py 以外的所有 .py 文件
- * @param folderPath 要搜索的文件夹路径
- * @returns 找到的 Python 文件路径数组
- */
-function findPythonFilesExcludingInit(folderPath: string): string[] {
-  const pythonFiles: string[] = [];
-  const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (!workspaceFolders || workspaceFolders.length === 0) {
-    vscode.window.showErrorMessage("请先打开一个工作区（Workspace）");
-    return [];
-  }
-  const rootPath = workspaceFolders[0].uri.fsPath;
-  // 检查文件夹是否存在
-  if (!fs.existsSync(folderPath)) {
-    return [];
-  }
-  // 如果传入的路径是文件，则直接返回
-  if (fs.lstatSync(folderPath).isFile()) {
-    return [folderPath];
-  }
-
-  try {
-    // 读取文件夹内容
-    const entries = fs.readdirSync(folderPath, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const fullPath = path.join(folderPath, entry.name);
-
-      // 如果是文件且以 .py 结尾，但不是 __init__.py
-      if (
-        entry.isFile() &&
-        entry.name.endsWith(".py") &&
-        entry.name !== "__init__.py"
-      ) {
-        // 将文件相对于工作区的路径加入结果数组
-        pythonFiles.push(fullPath.replace(rootPath, ".").replace(/\\/g, "/"));
-      }
-      // 如果是目录，则递归搜索（可选）
-      else if (entry.isDirectory()) {
-        // 可以根据需要决定是否递归搜索子目录
-        const subDirFiles = findPythonFilesExcludingInit(fullPath);
-        pythonFiles.push(...subDirFiles);
-      }
-    }
-  } catch (error) {
-    vscode.window.showErrorMessage(`搜索 Python 文件时出错: ${error}`);
-  }
-  return pythonFiles;
-}
-function copyItem(
-  itemlist: Array<{ source: string; target: string }>,
-  rootPath: string,
-  PackageDir: string
-) {
-  if (itemlist && Array.isArray(itemlist)) {
-    for (const item of itemlist) {
-      const sourcePath = path.join(rootPath, item.source);
-      const destPath = path.join(
-        PackageDir,
-        item.target ? item.target : item.source
-      );
-
-      if (fs.existsSync(sourcePath)) {
-        // 如果是目录，递归复制整个目录
-        if (fs.statSync(sourcePath).isDirectory()) {
-          // 确保目标目录存在
-          const destDir = path.dirname(destPath);
-          if (!fs.existsSync(destDir)) {
-            fs.mkdirSync(destDir, { recursive: true });
-          }
-          copyDirectory(sourcePath, destPath);
-        } else {
-          // 如果是文件，直接复制
-          // 确保目标目录存在
-          const destDir = path.dirname(destPath);
-          if (!fs.existsSync(destDir)) {
-            fs.mkdirSync(destDir, { recursive: true });
-          }
-          fs.copyFileSync(sourcePath, destPath);
-        }
-        console.log(`已复制: ${item.source}`);
-      } else {
-        console.warn(`文件或目录不存在: ${item.source}`);
-      }
-    }
-    // vscode.window.showInformationMessage(
-    //   `AddOn 文件已成功复制到: ${PackageDir}`
-    // );
-  }
-}
-// 辅助函数：递归复制目录
-function copyDirectory(src: string, dest: string) {
-  if (!fs.existsSync(dest)) {
-    fs.mkdirSync(dest, { recursive: true });
-  }
-
-  const entries = fs.readdirSync(src, { withFileTypes: true });
-
-  for (const entry of entries) {
-    // 跳过需要忽略的文件和文件夹
-    if (shouldSkipEntry(entry.name)) {
-      continue;
-    }
-
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-
-    if (entry.isDirectory()) {
-      copyDirectory(srcPath, destPath);
-    } else {
-      // 跳过 .pyc 文件
-      if (!shouldSkipFile(entry.name)) {
-        fs.copyFileSync(srcPath, destPath);
-      }
-    }
-  }
-}
-
-// 判断是否应该跳过的文件夹或文件
-function shouldSkipEntry(name: string): boolean {
-  // 跳过特定的文件夹
-  const skipDirs = [".git", "__pycache__", ".svn", ".hg", "node_modules"];
-  return skipDirs.includes(name);
-}
-
-// 判断是否应该跳过的文件
-function shouldSkipFile(name: string): boolean {
-  // 跳过特定的文件类型
-  const skipExtensions = [".pyc", ".pyo", ".pyd", ".DS_Store", "Thumbs.db"];
-  return skipExtensions.some((ext) => name.endsWith(ext));
-}
 //
 async function make_custom_porgrams() {
   if (!vscode.workspace.workspaceFolders) {

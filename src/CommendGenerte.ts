@@ -9,7 +9,7 @@ interface CommandJson {
   initJson: {
     type: string;
     args0: any[];
-    colour: string;
+    color: string;
     [key: string]: any;
   };
   xml: string;
@@ -32,7 +32,7 @@ class AddonCustomBlock {
     initJson: {
       type: "",
       args0: [],
-      colour: "#FFBF00",
+      color: "#FFBF00",
     },
     xml: "",
     message: {},
@@ -61,7 +61,7 @@ class AddonCustomBlock {
       initJson: {
         type: this.block_type,
         args0: [],
-        colour: color || "#FFBF00",
+        color: color || "#FFBF00",
       },
       xml: "",
       message: {},
@@ -602,12 +602,12 @@ function readDescription(
 
   // 提取其他指令参数
   const parameters: { [key: string]: string } = {};
-  const paramMatches = description.matchAll(/\$\s*(\w+)\s*=\s*([^"]*)/g);
+  const paramMatches = description.matchAll(/\$\s*(\w+)\s*=\s*([^"\r\n]*)/g);
 
   for (const match of paramMatches) {
     parameters[match[1].toLowerCase()] = match[2];
   }
-
+  console.log("parameters:", parameters);
   const openUrl = parameters.openurl || "";
   const color = parameters.color || "#FFBF00";
 
@@ -616,6 +616,16 @@ function readDescription(
 
 function drawCommandBlock(ConfigPath: string): void {
   const commandJson: any[] = [];
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders || workspaceFolders.length === 0) {
+    vscode.window.showErrorMessage("请先打开一个工作区（Workspace）");
+    return;
+  }
+  const rootPath = workspaceFolders[0].uri.fsPath;
+  const package_setting_path = path.join(rootPath, "package_log_pro.json");
+  const package_setting = JSON.parse(
+    fs.readFileSync(package_setting_path, "utf-8")
+  );
 
   const content = fs.readFileSync(ConfigPath, "utf-8");
   const configs = content.matchAll(/`\s*(\w+)\s*`[\s\n]*([^`]+)/g);
@@ -627,7 +637,7 @@ function drawCommandBlock(ConfigPath: string): void {
     const [commandType, openUrl, color, variables] =
       readDescription(description);
 
-    addonCommand.create("JKFHub", name, commandType, color);
+    addonCommand.create(package_setting.name, name, commandType, color);
     variables.openUrl = openUrl;
 
     commandJson.push(addonCommand.buildCommandWithConfig(variables));
@@ -638,7 +648,7 @@ function drawCommandBlock(ConfigPath: string): void {
 
   const targetPath = path.join(
     vscode.workspace.workspaceFolders![0].uri.fsPath,
-    "OldToNew_Customprograms.json"
+    "OldToNew_CustomPrograms.json"
   );
   fs.writeFileSync(targetPath, JSON.stringify(commandJson, null, 4));
 }
