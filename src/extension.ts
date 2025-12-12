@@ -137,7 +137,7 @@ async function initSettingsJson() {
       "**/.hg": true,
       "**/.DS_Store": true,
       "**/Thumbs.db": true,
-      "**/__pychace__": true,
+      "**/__pycache__": true,
       "**/**.pyc": true,
       ".python-version": true,
       ".venv": true,
@@ -161,8 +161,11 @@ async function initSettingsJson() {
         }
       }
 
-      // 合并配置（新配置会覆盖同名的旧配置）
-      const mergedSettings = { ...defaultSettings, ...existingSettings };
+      // 深度合并配置，只更新缺失的部分
+      const mergedSettings = deepMergeSettings(
+        defaultSettings,
+        existingSettings
+      );
 
       // 写入合并后的配置
       fs.writeFileSync(settingsPath, JSON.stringify(mergedSettings, null, 4));
@@ -179,6 +182,41 @@ async function initSettingsJson() {
       vscode.window.showErrorMessage(`写入文件失败: ${err}`);
     }
   }
+}
+/**
+ * 深度合并两个配置对象，只在目标对象缺失相应键时才添加默认值
+ * @param defaultSettings 默认配置
+ * @param existingSettings 现有配置
+ * @returns 合并后的配置
+ */
+function deepMergeSettings(defaultSettings: any, existingSettings: any): any {
+  const result = { ...existingSettings };
+
+  for (const key in defaultSettings) {
+    if (defaultSettings.hasOwnProperty(key)) {
+      // 如果现有配置中没有这个键，则使用默认值
+      if (!existingSettings.hasOwnProperty(key)) {
+        result[key] = defaultSettings[key];
+      }
+      // 如果两个值都是对象且不是数组，则深度合并
+      else if (
+        typeof defaultSettings[key] === "object" &&
+        typeof existingSettings[key] === "object" &&
+        defaultSettings[key] !== null &&
+        existingSettings[key] !== null &&
+        !Array.isArray(defaultSettings[key]) &&
+        !Array.isArray(existingSettings[key])
+      ) {
+        result[key] = deepMergeSettings(
+          defaultSettings[key],
+          existingSettings[key]
+        );
+      }
+      // 对于其他情况，保留现有配置的值
+    }
+  }
+
+  return result;
 }
 
 // 更新 files.exclude 设置的辅助函数（支持指定特定项）
