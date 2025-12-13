@@ -130,11 +130,10 @@ async function createTarGz(rm_output: boolean) {
       path.join(rootPath, package_setting.addon_config),
       "utf-8"
     );
-    const version_match = addon_config.match(/version\s*=\s*(.+?)\n/m);
-    const addon_version = (version_match ? version_match[1] : "1.0").replace(
-      /\./g,
-      "_"
-    );
+    const version_match = addon_config.match(/version\s*=\s*([^\n]+)/i);
+    let addon_version = version_match ? version_match[1].trim() : "1.0";
+    addon_version = addon_version.replace(/\./g, "_");
+    console.log("addon version: ", addon_version);
     const tar = require("tar");
     const projectName = package_setting.name;
     const OutputDir = path.join(rootPath, package_setting.output);
