@@ -9,7 +9,7 @@ interface CommandJson {
   initJson: {
     type: string;
     args0: any[];
-    color: string;
+    colour: string;
     [key: string]: any;
   };
   xml: string;
@@ -32,7 +32,7 @@ class AddonCustomBlock {
     initJson: {
       type: "",
       args0: [],
-      color: "#FFBF00",
+      colour: "#FFBF00",
     },
     xml: "",
     message: {},
@@ -44,7 +44,7 @@ class AddonCustomBlock {
     AddonName: string,
     CommandName: string,
     CommandType: string | null = null,
-    color: string | null = null
+    colour: string | null = null
   ): void {
     this.AddonName = AddonName;
     this.CommandName = CommandName;
@@ -61,7 +61,7 @@ class AddonCustomBlock {
       initJson: {
         type: this.block_type,
         args0: [],
-        color: color || "#FFBF00",
+        colour: colour || "#FFBF00",
       },
       xml: "",
       message: {},
@@ -607,11 +607,9 @@ function readDescription(
   for (const match of paramMatches) {
     parameters[match[1].toLowerCase()] = match[2];
   }
-  console.log("parameters:", parameters);
   const openUrl = parameters.openurl || "";
-  const color = parameters.color || "#FFBF00";
-
-  return [commandType, openUrl, color, variable];
+  const colour = parameters.colour || "#FFBF00";
+  return [commandType, openUrl, colour, variable];
 }
 
 function drawCommandBlock(ConfigPath: string): void {
@@ -634,10 +632,10 @@ function drawCommandBlock(ConfigPath: string): void {
     const addonCommand = new AddonCustomBlock();
     const name = config[1];
     const description = config[2];
-    const [commandType, openUrl, color, variables] =
+    const [commandType, openUrl, colour, variables] =
       readDescription(description);
 
-    addonCommand.create(package_setting.name, name, commandType, color);
+    addonCommand.create(package_setting.name, name, commandType, colour);
     variables.openUrl = openUrl;
 
     commandJson.push(addonCommand.buildCommandWithConfig(variables));
