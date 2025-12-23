@@ -362,15 +362,15 @@ class AddonCustomBlock {
     });
 
     this.block_index += 1;
-
-    if (!this.Command_json.initJson[`args${this.block_index}`]) {
-      this.Command_json.initJson[`args${this.block_index}`] = [];
+    const argsName = `args${this.block_index}`;
+    if (!this.Command_json.initJson[argsName]) {
+      this.Command_json.initJson[argsName] = [];
     }
 
-    this.Command_json.initJson[`args${this.block_index}`].push(
+    this.Command_json.initJson[argsName].push(
       {
         type: "input_statement",
-        name: `JAKA_CUSTOM_SUBSTACK${this.block_index}`,
+        name: `JAKA_CUSTOM_SUBSTACK${this.block_index - 1}`,
       },
       {
         type: "field_label",
@@ -422,13 +422,17 @@ class AddonCustomBlock {
 
   buildCommandJson(openUrl: string = ""): any {
     this.compileJson();
-    return {
+    const resultJson: { [key: string]: any } = {
       JAKA_BLOCK_DATA: JSON.stringify(this.Command_json),
       blockName: this.CommandName,
       BLOCK_TYPE: this.block_type,
       jksUrl: `connected_robot/${this.CommandName}`,
       openUrl: openUrl,
     };
+    for (let i = 0; i < this.block_index; i++) {
+      resultJson[`jksUrl${i + 1}`] = `connected_robot/${this.CommandName}`;
+    }
+    return resultJson;
   }
 
   buildCommandWithConfig(config: { [key: string]: any }): any {
@@ -550,7 +554,7 @@ function readDescription(
       }
     }
   }
-
+  console.log(atters);
   // 提取上下文
   const context: { [key: string]: { [lang: string]: string } } = {};
   const contextMatches = description.matchAll(/\s*-\s*(\w+)\s*=\s*([^;]+);/g);
