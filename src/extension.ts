@@ -377,13 +377,22 @@ portal= 1
 languageType= ${addonType.label}
 service= ${addonType.label == "python" ? "main.py" : "addon.json"}
 serviceenabled = 1
+
+;[Requirement]
+;dir = requirement
+;list = requirement.list
 `;
+  if (!fs.existsSync(addonConfig)) {
+    fs.writeFileSync(addonConfig, config_settings);
+  }
+
   // 创建addon启动文件
-  fs.writeFileSync(addonConfig, config_settings);
-  if (addonType.label == "python") {
-    fs.writeFileSync(path.join(rootPath, "main.py"), "");
-  } else {
-    fs.writeFileSync(path.join(rootPath, "addon.json"), "");
+  const enterFile = path.join(
+    rootPath,
+    addonType.label == "python" ? "main.py" : "addon.json"
+  );
+  if (!fs.existsSync(enterFile)) {
+    fs.writeFileSync(enterFile, "");
   }
   // python flask 服务代码
   if (add_customprogramsFlag) {
@@ -664,6 +673,7 @@ def create_logger(name, owner=None):
     version_check: true,
     clear_code: true,
     output: "output",
+    remote_dir: "/home/jakauser/",
     debug_robot: [
       "",
       "",
