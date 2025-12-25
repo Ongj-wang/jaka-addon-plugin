@@ -61,6 +61,9 @@
   "engines": {
     "vscode": "^1.70.0"
   },
+  "files": [
+    "resources/**/*"
+  ],
   "license": "MIT",
   "main": "./out/extension.js",
   "name": "auto-settings-generator",
