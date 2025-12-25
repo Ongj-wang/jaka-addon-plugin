@@ -79,6 +79,62 @@ export function activate(context: vscode.ExtensionContext) {
       await release_build();
     }
   );
+
+  const AddAntiModule = vscode.commands.registerCommand(
+    "extension.AddAntiModule",
+    async () => {
+      const module_name = await vscode.window.showQuickPick(
+        [
+          { label: "FlaskResponse", description: "Flask服务响应辅助方法" },
+          { label: "LoggingFormatter", description: "Python日志格式化方法" },
+          { label: "ThreadDataBase", description: "多线程数据读取方法" },
+        ],
+        {
+          placeHolder: "请选择希望添加的模组",
+          ignoreFocusOut: true,
+        }
+      );
+      if (!module_name) return;
+
+      extractTarGzToWorkspace(context, module_name.label);
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (!workspaceFolders || workspaceFolders.length === 0) {
+        vscode.window.showErrorMessage("请先打开一个工作区（Workspace）");
+        return;
+      }
+      const packagPath = path.join(
+        workspaceFolders[0].uri.fsPath,
+        "package_log_pro.json"
+      );
+      if (!fs.existsSync(packagPath)) {
+        return;
+      } else {
+        const package_setting = JSON.parse(
+          fs.readFileSync(packagPath, "utf-8")
+        );
+        for (const module of package_setting.no_transform) {
+          if (module.source === module_name.label) {
+            // vscode.window.showErrorMessage(`${module_name.label}已存在`);
+            return;
+          }
+        }
+        for (const module of package_setting.transform) {
+          if (module.source === module_name.label) {
+            // vscode.window.showErrorMessage(`${module_name.label}已存在`);
+            return;
+          }
+        }
+        package_setting.no_transform.push({
+          source: module_name.label,
+        });
+        fs.writeFileSync(
+          packagPath,
+          JSON.stringify(package_setting, null, 2),
+          "utf-8"
+        );
+      }
+    }
+  );
   context.subscriptions.push(disposable);
   context.subscriptions.push(enableFilesExclude);
   context.subscriptions.push(disableFilesExclude);
@@ -87,7 +143,8 @@ export function activate(context: vscode.ExtensionContext) {
     addonFramework,
     buildAddonPackage,
     MakeCustomPorgrams,
-    BuildRelaseAddon
+    BuildRelaseAddon,
+    AddAntiModule
   );
 }
 

@@ -41,6 +41,10 @@
       {
         "command": "extension.BuildRelaseAddon",
         "title": "auto-setting:build release addon"
+      },
+      {
+        "command": "extension.AddAntiModule",
+        "title": "auto-setting:add anti module"
       }
     ]
   },
