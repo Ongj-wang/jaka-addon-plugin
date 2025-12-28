@@ -6,45 +6,45 @@
         "command": "extension.generateSettingsJson",
         "description": "生成并格式化 .settings.json 配置文件",
         "shortTitle": "format settings",
-        "title": "auto-settings:format settings.json"
+        "title": "addon-plugin:format settings.json"
       },
       {
         "command": "extension.enableFilesExclude",
         "description": "启用文件排除规则",
         "shortTitle": "hide files",
-        "title": "auto-settings:enableFilesExclude"
+        "title": "addon-plugin:enableFilesExclude"
       },
       {
         "command": "extension.disableFilesExclude",
         "description": "禁用文件排除规则",
-        "title": "auto-settings:disableFilesExclude"
+        "title": "addon-plugin:disableFilesExclude"
       },
       {
         "command": "extension.enableAddonFilesExclude",
         "description": "启用控制器环境中的addon文件排除规则",
-        "title": "auto-settings:enableAddonFilesExclude"
+        "title": "addon-plugin:enableAddonFilesExclude"
       },
       {
         "command": "extension.CreatePyaddon",
         "description": "创建一个 AddOn 插件项目",
-        "title": "auto-settings:make new addon"
+        "title": "addon-plugin:make new addon"
       },
       {
         "command": "extension.buildAddon",
-        "title": "auto-setting:build addon"
+        "title": "addon-plugin:build addon"
       },
       {
         "command": "extension.MakeCustomPorgrams",
         "shortTitle": "make custom porgrams",
-        "title": "auto-setting:make custom porgrams"
+        "title": "addon-plugin:make custom porgrams"
       },
       {
         "command": "extension.BuildRelaseAddon",
-        "title": "auto-setting:build release addon"
+        "title": "addon-plugin:build release addon"
       },
       {
         "command": "extension.AddAntiModule",
-        "title": "auto-setting:add anti module"
+        "title": "addon-plugin:add anti module"
       }
     ]
   },
@@ -54,14 +54,14 @@
     "tar": "^7.5.2",
     "xml2js": "^0.6.2"
   },
-  "description": "auto generate .settings.json",
+  "description": "JAKA Addon 插件开发工具",
   "devDependencies": {
     "@types/node": "^24.10.1",
     "@types/vscode": "^1.70.0",
     "@types/xml2js": "^0.4.14",
     "typescript": "^5.9.3"
   },
-  "displayName": "auto-settings-generator",
+  "displayName": "JAKA AddOn plugin",
   "engines": {
     "vscode": "^1.70.0"
   },
@@ -70,7 +70,7 @@
   ],
   "license": "MIT",
   "main": "./out/extension.js",
-  "name": "auto-settings-generator",
+  "name": "jaka-addon-plugin",
   "repository": {
     "type": "git",
     "url": "https://gitee.com/wanghonejie/auto-settings-generator.git"
@@ -79,5 +79,5 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./"
   },
-  "version": "0.0.8"
+  "version": "1.0.0"
 }
