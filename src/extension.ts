@@ -1,4 +1,6 @@
 import * as fs from "fs";
+import * as http from "http";
+import * as https from "https";
 import * as path from "path";
 import * as vscode from "vscode";
 import { drawCommandBlock } from "./CommendGenerte";
@@ -101,16 +103,19 @@ export function activate(context: vscode.ExtensionContext) {
             label: "FlaskResponse",
             description: "Flask服务响应辅助方法",
             source: "flaskresponse-0.0.1-py3-none-any.whl",
+            url: "https://gitee.com/wanghonejie/FlaskResponse/releases/download/V0.0.1/flaskresponse-0.0.1-py3-none-any.whl",
           },
           {
             label: "MyFactory",
             description: "一种用于多线程调用实例化对象的方法",
-            source: "myfactory-0.1.0-py3-none-any.whl",
+            source: "myfactory-0.1.1-py3-none-any.whl",
+            url: "https://gitee.com/wanghonejie/MyFactorys/releases/download/V0.1.1/myfactory-0.1.1-py3-none-any.whl",
           },
           {
             label: "ThreadDataBase",
             description: "多线程数据读写方法",
             source: "threaddatabase-1.1.0-py3-none-any.whl",
+            url: "https://gitee.com/wanghonejie/thread-data-base/releases/download/V1.1.0/threaddatabase-1.1.0-py3-none-any.whl",
           },
         ],
         {
@@ -153,15 +158,20 @@ export function activate(context: vscode.ExtensionContext) {
       const module_info = module_name.source.split("-");
       const moduleInfo = `${module_info[0]}==${module_info[1]}`;
 
-      // 获取插件资源路径中的压缩包
-      const MouldSorcePath = vscode.Uri.joinPath(
-        context.extensionUri,
-        "resources",
-        module_name.source
-      );
-      // 复制插件资源
       const MouldDestPath = path.join(RequirementPath, module_name.source);
-      fs.copyFileSync(MouldSorcePath.fsPath, MouldDestPath); // 复制文件
+      // 获取插件资源路径中的压缩包
+      if (module_name.url === undefined) {
+        const MouldSorcePath = vscode.Uri.joinPath(
+          context.extensionUri,
+          "resources",
+          module_name.source
+        );
+        // 复制插件资源
+        fs.copyFileSync(MouldSorcePath.fsPath, MouldDestPath); // 复制文件
+      } else {
+        await downloadFileFromUrl(module_name.url, MouldDestPath);
+      }
+
       // 更新requirement.list
       const listContext = fs
         .readFileSync(RequirementListPath, "utf-8")
@@ -646,5 +656,80 @@ async function writeAddonConfig(
   const packagsetting = JSON.parse(fs.readFileSync(packagPath, "utf-8"));
   const ConfigPath = path.join(workspacePath, packagsetting.addon_config);
   return await writeIniFile(ConfigPath, data);
+}
+
+/**
+ * 从URL下载文件到指定路径（支持重定向）
+ * @param url - 要下载的文件URL
+ * @param destPath - 目标保存路径
+ * @returns Promise<boolean> - 下载是否成功
+ */
+function downloadFileFromUrl(url: string, destPath: string): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(destPath);
+
+    // 根据URL协议选择合适的客户端
+    const client = url.startsWith("https") ? https : http;
+
+    const request = client.get(url, (response) => {
+      // 处理重定向
+      if (
+        response.statusCode === 301 ||
+        response.statusCode === 302 ||
+        response.statusCode === 307
+      ) {
+        const redirectUrl = response.headers.location;
+        if (redirectUrl) {
+          // 关闭当前文件流
+          file.close();
+          fs.unlink(destPath, () => {}); // 删除不完整的文件
+
+          // 递归调用，使用新的重定向URL
+          downloadFileFromUrl(redirectUrl, destPath)
+            .then(resolve)
+            .catch(reject);
+          return;
+        } else {
+          vscode.window.showErrorMessage(`重定向失败: 无法获取重定向位置`);
+          file.close();
+          fs.unlink(destPath, () => {});
+          resolve(false);
+          return;
+        }
+      }
+
+      if (response.statusCode !== 200) {
+        vscode.window.showErrorMessage(`下载失败: HTTP ${response.statusCode}`);
+        file.close();
+        fs.unlink(destPath, () => {}); // 删除不完整的文件
+        resolve(false);
+        return;
+      }
+
+      response.pipe(file);
+
+      file.on("finish", () => {
+        file.close();
+        vscode.window.showInformationMessage(`文件下载成功: ${destPath}`);
+        resolve(true);
+      });
+    });
+
+    request.on("error", (err) => {
+      file.close();
+      fs.unlink(destPath, () => {}); // 删除不完整的文件
+      vscode.window.showErrorMessage(`下载出错: ${err.message}`);
+      resolve(false);
+    });
+
+    request.setTimeout(30000, () => {
+      // 30秒超时
+      request.abort();
+      file.close();
+      fs.unlink(destPath, () => {});
+      vscode.window.showErrorMessage("下载超时");
+      resolve(false);
+    });
+  });
 }
 export function deactivate() {}
