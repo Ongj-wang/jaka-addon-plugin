@@ -1,6 +1,5 @@
 import * as fs from "fs";
 import * as path from "path";
-import * as tar from "tar";
 import * as vscode from "vscode";
 import { drawCommandBlock } from "./CommendGenerte";
 import { buildAddon, release_build } from "./buildMethods";
@@ -61,7 +60,19 @@ export function activate(context: vscode.ExtensionContext) {
       if (addonProFiles.length > 0) {
         await make_custom_porgrams();
       }
-      buildAddon();
+      // 校验是否由python依赖配置
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (!workspaceFolders || workspaceFolders.length === 0) {
+        vscode.window.showErrorMessage("请先打开一个工作区（Workspace）");
+        return;
+      }
+      const rootPath = workspaceFolders[0].uri.fsPath;
+      const config = await readAddonConfig(rootPath);
+      if (Object.keys(config).includes("Requirement")) {
+        await buildAddon(true, config["Requirement"]);
+      } else {
+        await buildAddon();
+      }
     }
   );
 
@@ -83,11 +94,24 @@ export function activate(context: vscode.ExtensionContext) {
   const AddAntiModule = vscode.commands.registerCommand(
     "extension.AddAntiModule",
     async () => {
+      // 选择模组
       const module_name = await vscode.window.showQuickPick(
         [
-          { label: "FlaskResponse", description: "Flask服务响应辅助方法" },
-          { label: "LoggingFormatter", description: "Python日志格式化方法" },
-          { label: "ThreadDataBase", description: "多线程数据读取方法" },
+          {
+            label: "FlaskResponse",
+            description: "Flask服务响应辅助方法",
+            source: "flaskresponse-0.0.1-py3-none-any.whl",
+          },
+          {
+            label: "MyFactory",
+            description: "一种用于多线程调用实例化对象的方法",
+            source: "myfactory-0.1.0-py3-none-any.whl",
+          },
+          {
+            label: "ThreadDataBase",
+            description: "多线程数据读写方法",
+            source: "threaddatabase-1.1.0-py3-none-any.whl",
+          },
         ],
         {
           placeHolder: "请选择希望添加的模组",
@@ -96,43 +120,62 @@ export function activate(context: vscode.ExtensionContext) {
       );
       if (!module_name) return;
 
-      extractTarGzToWorkspace(context, module_name.label);
+      // 获取当前工作区
       const workspaceFolders = vscode.workspace.workspaceFolders;
       if (!workspaceFolders || workspaceFolders.length === 0) {
         vscode.window.showErrorMessage("请先打开一个工作区（Workspace）");
         return;
       }
-      const packagPath = path.join(
-        workspaceFolders[0].uri.fsPath,
-        "package_log_pro.json"
-      );
-      if (!fs.existsSync(packagPath)) {
-        return;
+      const workspacePath = path.join(workspaceFolders[0].uri.fsPath);
+
+      // 读取配置文件, 获取addon依赖管理配置
+      const Configs = await readAddonConfig(workspacePath);
+      let RequirementPath = path.join(workspacePath, "requirement");
+      let RequirementListPath = path.join(workspacePath, "requirement.list");
+      if (Object.keys(Configs).includes("Requirement")) {
+        RequirementPath = path.join(workspacePath, Configs.Requirement.dir);
+        RequirementListPath = path.join(
+          workspacePath,
+          Configs.Requirement.list
+        );
       } else {
-        const package_setting = JSON.parse(
-          fs.readFileSync(packagPath, "utf-8")
-        );
-        for (const module of package_setting.no_transform) {
-          if (module.source === module_name.label) {
-            // vscode.window.showErrorMessage(`${module_name.label}已存在`);
-            return;
-          }
-        }
-        for (const module of package_setting.transform) {
-          if (module.source === module_name.label) {
-            // vscode.window.showErrorMessage(`${module_name.label}已存在`);
-            return;
-          }
-        }
-        package_setting.no_transform.push({
-          source: module_name.label,
-        });
-        fs.writeFileSync(
-          packagPath,
-          JSON.stringify(package_setting, null, 2),
-          "utf-8"
-        );
+        Configs["Requirement"] = {
+          dir: "requirement",
+          list: "requirement.list",
+        };
+        fs.mkdirSync(RequirementPath);
+        fs.writeFileSync(RequirementListPath, "");
       }
+      // 更新配置文件
+      writeAddonConfig(workspacePath, Configs);
+
+      // 解析模组名和版本信息
+      const module_info = module_name.source.split("-");
+      const moduleInfo = `${module_info[0]}==${module_info[1]}`;
+
+      // 获取插件资源路径中的压缩包
+      const MouldSorcePath = vscode.Uri.joinPath(
+        context.extensionUri,
+        "resources",
+        module_name.source
+      );
+      // 复制插件资源
+      const MouldDestPath = path.join(RequirementPath, module_name.source);
+      fs.copyFileSync(MouldSorcePath.fsPath, MouldDestPath); // 复制文件
+      // 更新requirement.list
+      const listContext = fs
+        .readFileSync(RequirementListPath, "utf-8")
+        .trim()
+        .split("\n");
+      for (const line of listContext) {
+        if (line.match(/^${module_info[0]}==.*&/)) {
+          listContext.splice(listContext.indexOf(line), 1); // 删除旧行
+          break;
+        }
+      }
+      listContext.push(moduleInfo);
+      const trimmedContent = listContext.join("\n").trim();
+      fs.writeFileSync(RequirementListPath, trimmedContent);
     }
   );
   context.subscriptions.push(disposable);
@@ -424,23 +467,22 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
 
   // 创建addon配置文件
   const addonConfig = path.join(rootPath, `${projectName}_config.ini`);
-  const config_settings = `[AddOnInfo]
-convention= 2.0
-name= ${projectName}
-description= None
-version= 1.0
-type= 3
-portal= 1
-languageType= ${addonType.label}
-service= ${addonType.label == "python" ? "main.py" : "addon.json"}
-serviceenabled = 1
+  const config_settings = {
+    AddOnInfo: {
+      convention: "2.0",
+      name: `${projectName}`,
+      description: "None",
+      version: "1.0",
+      type: "3",
+      portal: "1",
+      languageType: `${addonType.label}`,
+      service: `${addonType.label == "python" ? "main.py" : "addon.json"}`,
+      serviceenabled: "1",
+    },
+  };
 
-;[Requirement]
-;dir = requirement
-;list = requirement.list
-`;
   if (!fs.existsSync(addonConfig)) {
-    fs.writeFileSync(addonConfig, config_settings);
+    writeIniFile(addonConfig, config_settings);
   }
 
   // 创建addon启动文件
@@ -459,7 +501,7 @@ serviceenabled = 1
     }
 
     // 写服务路由方法
-    extractTarGzToWorkspace(context, "FlaskResponse");
+    // extractTarGzToWorkspace(context, "FlaskResponse");
     // 写日志管理器方法
   }
 
@@ -532,46 +574,77 @@ async function findAddonProFiles(filePattern: string): Promise<vscode.Uri[]> {
   }
 }
 
-async function extractTarGz(archivePath: string, targetDir: string) {
-  // 确保目标目录存在
-  if (!fs.existsSync(targetDir)) {
-    fs.mkdirSync(targetDir, { recursive: true });
-  }
+// 读取 ini 文件的方法
+async function readIniFile(filePath: string): Promise<any> {
+  try {
+    if (!fs.existsSync(filePath)) {
+      vscode.window.showErrorMessage(`文件不存在: ${filePath}`);
+      return null;
+    }
 
-  // 使用 tar 模块解压
-  await tar.extract({
-    gzip: true,
-    file: archivePath,
-    cwd: targetDir,
-  });
+    const contentLines = fs.readFileSync(filePath, "utf8").split("\n");
+    const parseIni: { [section: string]: { [option: string]: string } } = {};
+    let nowSection = "";
+    for (const line of contentLines) {
+      const lineContent = line.trim().split(";")[0]; // 去除行首尾的空白字符, 并去除注释
+      if (lineContent.startsWith("[") && lineContent.endsWith("]")) {
+        const sectionName = lineContent.slice(1, -1).trim();
+        parseIni[sectionName] = {};
+        nowSection = sectionName;
+        continue;
+      }
+      const optionMatch = lineContent.match(/^(\w+)\s*[=:]\s*([^\s+]*)$/);
+      if (optionMatch && nowSection != "") {
+        const [, optionName, optionValue] = optionMatch;
+        parseIni[nowSection][optionName] = optionValue;
+        continue;
+      }
+    }
+    return parseIni;
+  } catch (error) {
+    vscode.window.showErrorMessage(`读取 ini 文件失败: ${error}`);
+    return null;
+  }
 }
 
-async function extractTarGzToWorkspace(
-  context: vscode.ExtensionContext,
-  TarFile: string
-) {
-  const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (!workspaceFolders || workspaceFolders.length === 0) {
-    vscode.window.showErrorMessage("请先打开一个工作区");
-    return;
-  }
-
-  // 获取插件资源路径中的压缩包
-  const tarGzPath = vscode.Uri.joinPath(
-    context.extensionUri,
-    "resources",
-    `${TarFile}.tar.gz`
-  );
-
-  // 获取目标解压路径
-  const targetPath = workspaceFolders[0].uri.fsPath;
-
+// 写入 ini 文件的方法
+async function writeIniFile(
+  filePath: string,
+  data: { [section: string]: { [option: string]: string } }
+): Promise<boolean> {
   try {
-    // 解压到目标目录
-    await extractTarGz(tarGzPath.fsPath, targetPath);
-    vscode.window.showInformationMessage("压缩包解压成功");
+    let iniString = "";
+    for (const sectionName in data) {
+      iniString += `[${sectionName}]\n`;
+      for (const optionName in data[sectionName]) {
+        iniString += `${optionName} = ${data[sectionName][optionName]}\n`;
+      }
+      iniString += "\n";
+    }
+    fs.writeFileSync(filePath, iniString, "utf8");
+    return true;
   } catch (error) {
-    vscode.window.showErrorMessage(`解压失败: ${error}`);
+    vscode.window.showErrorMessage(`写入 ini 文件失败: ${error}`);
+    return false;
   }
+}
+
+// 读 addon 配置的方法
+async function readAddonConfig(workspacePath: string): Promise<any> {
+  const packagPath = path.join(workspacePath, "package_log_pro.json");
+  const packagsetting = JSON.parse(fs.readFileSync(packagPath, "utf-8"));
+  const ConfigPath = path.join(workspacePath, packagsetting.addon_config);
+  return await readIniFile(ConfigPath);
+}
+
+// 写 addon 配置的方法
+async function writeAddonConfig(
+  workspacePath: string,
+  data: any
+): Promise<boolean> {
+  const packagPath = path.join(workspacePath, "package_log_pro.json");
+  const packagsetting = JSON.parse(fs.readFileSync(packagPath, "utf-8"));
+  const ConfigPath = path.join(workspacePath, packagsetting.addon_config);
+  return await writeIniFile(ConfigPath, data);
 }
 export function deactivate() {}

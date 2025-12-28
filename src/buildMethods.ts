@@ -3,7 +3,10 @@ import * as path from "path";
 import * as vscode from "vscode";
 
 // 打包addon指令辅助函数
-async function buildAddon(rm_output: boolean = true) {
+async function buildAddon(
+  rm_output: boolean = true,
+  requirement: { dir: string; list: string } = { dir: "", list: "" }
+) {
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders || workspaceFolders.length === 0) {
     vscode.window.showErrorMessage("请先打开一个工作区（Workspace）");
@@ -18,6 +21,11 @@ async function buildAddon(rm_output: boolean = true) {
   const package_setting = JSON.parse(
     fs.readFileSync(path.join(rootPath, "package_log_pro.json"), "utf-8")
   );
+  // 添加requirement
+  if (requirement.dir) {
+    package_setting.no_transform.push({ source: requirement.dir });
+    package_setting.no_transform.push({ source: requirement.list });
+  }
 
   // 创建打包输出目录
   const OutputDir = path.join(rootPath, package_setting.output);
