@@ -5,7 +5,7 @@ import * as vscode from "vscode";
 // 打包addon指令辅助函数
 async function buildAddon(
   rm_output: boolean = true,
-  requirement: { dir: string; list: string } = { dir: "", list: "" }
+  requirement: { dir: string; list: string } = { dir: "", list: "" },
 ) {
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders || workspaceFolders.length === 0) {
@@ -19,7 +19,7 @@ async function buildAddon(
   }
 
   const package_setting = JSON.parse(
-    fs.readFileSync(path.join(rootPath, "package_log_pro.json"), "utf-8")
+    fs.readFileSync(path.join(rootPath, "package_log_pro.json"), "utf-8"),
   );
   // 添加requirement
   if (requirement.dir) {
@@ -55,11 +55,11 @@ async function buildAddon(
   }
   fs.writeFileSync(
     path.join(PackageDir, "transform_files.txt"),
-    tansform_list.join(",")
+    tansform_list.join(","),
   );
   fs.writeFileSync(
     path.join(rootPath, "transform_files.txt"),
-    tansform_list.join(",")
+    tansform_list.join(","),
   );
   fs.writeFileSync(
     path.join(PackageDir, "setup.py"),
@@ -70,7 +70,7 @@ with open("./transform_files.txt") as f:
     files = f.read().strip('\\n').split(",")
 for file in files:
     if ".py" in file:
-        setup(ext_modules = cythonize(file))`
+        setup(ext_modules = cythonize(file))`,
   );
   if (package_setting.clear_code) {
     removeCommentsAndReplacePrint(OutputDir);
@@ -130,13 +130,13 @@ async function createTarGz(rm_output: boolean) {
   }
   const rootPath = workspaceFolders[0].uri.fsPath;
   const package_setting = JSON.parse(
-    fs.readFileSync(path.join(rootPath, "package_log_pro.json"), "utf-8")
+    fs.readFileSync(path.join(rootPath, "package_log_pro.json"), "utf-8"),
   );
   try {
     // 动态导入 tar 模块，避免类型检查问题
     const addon_config = fs.readFileSync(
       path.join(rootPath, package_setting.addon_config),
-      "utf-8"
+      "utf-8",
     );
     const version_match = addon_config.match(/version\s*=\s*([^\n]+)/i);
     let addon_version = version_match ? version_match[1].trim() : "1.0";
@@ -155,11 +155,11 @@ async function createTarGz(rm_output: boolean) {
         file: tarGzFilePath,
         cwd: OutputDir,
       },
-      [projectName]
+      [projectName],
     );
 
     vscode.window.showInformationMessage(
-      `AddOn 压缩包已创建: ${tarGzFilePath}`
+      `AddOn 压缩包已创建: ${tarGzFilePath}`,
     );
     if (rm_output) {
       const PackageDir = path.join(OutputDir, package_setting.name);
@@ -224,14 +224,14 @@ function findPythonFilesExcludingInit(folderPath: string): string[] {
 function copyItem(
   itemlist: Array<{ source: string; target: string }>,
   rootPath: string,
-  PackageDir: string
+  PackageDir: string,
 ) {
   if (itemlist && Array.isArray(itemlist)) {
     for (const item of itemlist) {
       const sourcePath = path.join(rootPath, item.source);
       const destPath = path.join(
         PackageDir,
-        item.target ? item.target : item.source
+        item.target ? item.target : item.source,
       );
 
       if (fs.existsSync(sourcePath)) {
@@ -310,7 +310,7 @@ function shouldSkipFile(name: string): boolean {
 async function uploadAddonToRobotViaSFTP(
   robotIP: string,
   username: string,
-  password: string
+  password: string,
 ) {
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders || workspaceFolders.length === 0) {
@@ -322,7 +322,7 @@ async function uploadAddonToRobotViaSFTP(
 
   // 查找最新的压缩包文件
   const packageData = JSON.parse(
-    fs.readFileSync(path.join(rootPath, "package_log_pro.json"), "utf8")
+    fs.readFileSync(path.join(rootPath, "package_log_pro.json"), "utf8"),
   );
   const outputDir = path.join(rootPath, "output");
   if (!fs.existsSync(outputDir)) {
@@ -375,7 +375,7 @@ async function uploadAddonToRobotViaSFTP(
     await sftp.end();
 
     vscode.window.showInformationMessage(
-      `文件上传成功! 文件路径: ${remoteFilePath}`
+      `文件上传成功! 文件路径: ${remoteFilePath}`,
     );
   } catch (error) {
     vscode.window.showErrorMessage(`上传失败: ${error}`);
@@ -390,7 +390,7 @@ async function executeBuildCommandOnRobot(
   robotIP: string,
   username: string,
   password: string,
-  zip_file: string
+  zip_file: string,
 ) {
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders || workspaceFolders.length === 0) {
@@ -412,25 +412,28 @@ async function executeBuildCommandOnRobot(
       client
         .on("ready", () => {
           vscode.window.showInformationMessage(
-            "SSH 连接成功，正在执行构建命令..."
+            "SSH 连接成功，正在执行构建命令...",
           );
 
           client.exec(
             `cd /home/jakauser && tar -xzvf ./${zip_file} && rm ./${zip_file} && cd ${zip_file.replace(
               /_v.*?\.tar\.gz/,
-              ""
+              "",
             )} && python ./setup.py build_ext --inplace`,
             (
               err: any,
               stream: {
                 on: (
                   arg0: string,
-                  arg1: (code: number, signal: any) => void
+                  arg1: (code: number, signal: any) => void,
                 ) => {
                   (): any;
                   new (): any;
                   on: {
-                    (arg0: string, arg1: (data: string) => void): {
+                    (
+                      arg0: string,
+                      arg1: (data: string) => void,
+                    ): {
                       (): any;
                       new (): any;
                       stderr: {
@@ -445,7 +448,7 @@ async function executeBuildCommandOnRobot(
                     new (): any;
                   };
                 };
-              }
+              },
             ) => {
               if (err) {
                 reject(err);
@@ -461,7 +464,7 @@ async function executeBuildCommandOnRobot(
 
                   if (code === 0) {
                     vscode.window.showInformationMessage(
-                      "构建命令执行成功!\n输出:\n" + output
+                      "构建命令执行成功!\n输出:\n" + output,
                     );
                     resolve();
                   } else {
@@ -469,7 +472,7 @@ async function executeBuildCommandOnRobot(
                       "构建命令执行失败!\n错误代码: " +
                         code +
                         "\n错误信息:\n" +
-                        errorOutput
+                        errorOutput,
                     );
                     reject(new Error("命令执行失败"));
                   }
@@ -482,7 +485,7 @@ async function executeBuildCommandOnRobot(
                   errorOutput += data.toString();
                   console.log("STDERR: " + data);
                 });
-            }
+            },
           );
         })
         .on("error", (err: Error) => {
@@ -562,8 +565,10 @@ function processPythonFile(filePath: string): void {
     const filteredLines = processedLines.filter((line) => !isOnlyComment(line));
 
     // 删除空行（连续的空行只保留一个）
-    const noEmptyLines = removeExtraEmptyLines(filteredLines);
-
+    const noEmptyLines = [
+      "# -*- coding:utf-8 -*-",
+      ...removeExtraEmptyLines(filteredLines),
+    ];
     // 写回文件
     fs.writeFileSync(filePath, noEmptyLines.join("\n"), "utf-8");
 
@@ -581,7 +586,7 @@ function removeDocstrings(content: string): string {
   // 移除模块级别的文档字符串（文件开头的三引号字符串）
   content = content.replace(
     /^\s*(?:\"\"\"[\s\S]*?\"\"\"|'''[\s\S]*?''')\s*\n?/,
-    ""
+    "",
   );
 
   // 移除类和函数定义后的文档字符串
@@ -590,7 +595,7 @@ function removeDocstrings(content: string): string {
     (match) => {
       // 保留类或函数定义，只移除文档字符串
       return match.replace(/(?:\"\"\"[\s\S]*?\"\"\"|'''[\s\S]*?''')/, "");
-    }
+    },
   );
 
   return content;
@@ -694,7 +699,7 @@ function removeExtraEmptyLines(lines: string[]): string[] {
 async function downloadFileFromRobotViaSFTP(
   robotIP: string,
   username: string,
-  password: string
+  password: string,
 ) {
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders || workspaceFolders.length === 0) {
@@ -705,14 +710,14 @@ async function downloadFileFromRobotViaSFTP(
   const packageDate = JSON.parse(
     fs.readFileSync(
       path.join(workspaceFolders[0].uri.fsPath, "package_log_pro.json"),
-      "utf-8"
-    )
+      "utf-8",
+    ),
   );
   const remoteFilePath = `${packageDate.remote}${packageDate.name}/`;
   const format_files = fs
     .readFileSync(
       path.join(workspaceFolders[0].uri.fsPath, "transform_files.txt"),
-      "utf-8"
+      "utf-8",
     )
     .split(",");
   const packageDir = `${workspaceFolders[0].uri.fsPath}\\${packageDate.output}\\${packageDate.name}`;
@@ -738,7 +743,7 @@ async function downloadFileFromRobotViaSFTP(
       fs.rmSync(file.replace(".", packageDir));
       await sftp.get(
         so_path,
-        file.replace(".", packageDir).replace(/\.py\n?/, ".so")
+        file.replace(".", packageDir).replace(/\.py\n?/, ".so"),
       );
     }
 
