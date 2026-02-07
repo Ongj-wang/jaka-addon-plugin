@@ -11,14 +11,14 @@ export function activate(context: vscode.ExtensionContext) {
     "extension.generateSettingsJson",
     async () => {
       initSettingsJson();
-    }
+    },
   );
   // 添加启用 files.exclude 的命令（支持参数）
   const enableFilesExclude = vscode.commands.registerCommand(
     "extension.enableFilesExclude",
     async (specificItems?: string[]) => {
       updateFilesExclude(true, specificItems);
-    }
+    },
   );
 
   // 添加禁用 files.exclude 的命令（支持参数）
@@ -26,7 +26,7 @@ export function activate(context: vscode.ExtensionContext) {
     "extension.disableFilesExclude",
     async (specificItems?: string[]) => {
       updateFilesExclude(false, specificItems);
-    }
+    },
   );
 
   // 添加AddOn的files.excluded的命令
@@ -42,7 +42,7 @@ export function activate(context: vscode.ExtensionContext) {
         "lib",
         "package.json",
       ]);
-    }
+    },
   );
 
   // 添加python addon框架命令
@@ -50,7 +50,7 @@ export function activate(context: vscode.ExtensionContext) {
     "extension.CreatePyaddon",
     async () => {
       initAddonFramework(context);
-    }
+    },
   );
 
   // 创建addon包命令
@@ -75,7 +75,7 @@ export function activate(context: vscode.ExtensionContext) {
       } else {
         await buildAddon();
       }
-    }
+    },
   );
 
   //
@@ -83,14 +83,14 @@ export function activate(context: vscode.ExtensionContext) {
     "extension.MakeCustomPorgrams",
     async () => {
       make_custom_porgrams();
-    }
+    },
   );
 
   const BuildRelaseAddon = vscode.commands.registerCommand(
     "extension.BuildRelaseAddon",
     async () => {
       await release_build();
-    }
+    },
   );
 
   const AddAntiModule = vscode.commands.registerCommand(
@@ -102,26 +102,26 @@ export function activate(context: vscode.ExtensionContext) {
           {
             label: "FlaskResponse",
             description: "Flask服务响应辅助方法",
-            source: "flaskresponse-0.0.1-py3-none-any.whl",
-            url: "https://gitee.com/wanghonejie/FlaskResponse/releases/download/V0.0.1/flaskresponse-0.0.1-py3-none-any.whl",
+            source:
+              "https://gitee.com/api/v5/repos/wanghonejie/FlaskResponse/releases/latest",
           },
           {
             label: "MyFactory",
             description: "一种用于多线程调用实例化对象的方法",
-            source: "myfactory-0.1.1-py3-none-any.whl",
-            url: "https://gitee.com/wanghonejie/MyFactorys/releases/download/V0.1.1/myfactory-0.1.1-py3-none-any.whl",
+            source:
+              "https://gitee.com/api/v5/repos/wanghonejie/MyFactorys/releases/latest",
           },
           {
             label: "ThreadDataBase",
             description: "多线程数据读写方法",
-            source: "threaddatabase-1.1.0-py3-none-any.whl",
-            url: "https://gitee.com/wanghonejie/thread-data-base/releases/download/V1.1.0/threaddatabase-1.1.0-py3-none-any.whl",
+            source:
+              "https://gitee.com/api/v5/repos/wanghonejie/thread-data-base/releases/latest",
           },
         ],
         {
           placeHolder: "请选择希望添加的模组",
           ignoreFocusOut: true,
-        }
+        },
       );
       if (!module_name) return;
 
@@ -141,7 +141,7 @@ export function activate(context: vscode.ExtensionContext) {
         RequirementPath = path.join(workspacePath, Configs.Requirement.dir);
         RequirementListPath = path.join(
           workspacePath,
-          Configs.Requirement.list
+          Configs.Requirement.list,
         );
       } else {
         Configs["Requirement"] = {
@@ -154,23 +154,27 @@ export function activate(context: vscode.ExtensionContext) {
       // 更新配置文件
       writeAddonConfig(workspacePath, Configs);
 
+      // get请求获取模块仓库的模组信息
+      const module_source = JSON.parse(await httpsGet(module_name.source));
+
+      const assets = findModuleConfig(module_source.assets, "whl");
       // 解析模组名和版本信息
-      const module_info = module_name.source.split("-");
+      const module_info = assets.name.split("-");
       const moduleInfo = `${module_info[0]}==${module_info[1]}`;
 
-      const MouldDestPath = path.join(RequirementPath, module_name.source);
+      const MouldDestPath = path.join(RequirementPath, assets.name);
       // 获取插件资源路径中的压缩包
-      if (module_name.url === undefined) {
-        const MouldSorcePath = vscode.Uri.joinPath(
-          context.extensionUri,
-          "resources",
-          module_name.source
-        );
-        // 复制插件资源
-        fs.copyFileSync(MouldSorcePath.fsPath, MouldDestPath); // 复制文件
-      } else {
-        await downloadFileFromUrl(module_name.url, MouldDestPath);
-      }
+      //   if (module_name.url === undefined) {
+      //     const MouldSorcePath = vscode.Uri.joinPath(
+      //       context.extensionUri,
+      //       "resources",
+      //       module_name.source
+      //     );
+      //     // 复制插件资源
+      //     fs.copyFileSync(MouldSorcePath.fsPath, MouldDestPath); // 复制文件
+      //   } else {
+      await downloadFileFromUrl(assets.browser_download_url, MouldDestPath);
+      //   }
 
       // 更新requirement.list
       const listContext = fs
@@ -186,7 +190,7 @@ export function activate(context: vscode.ExtensionContext) {
       listContext.push(moduleInfo);
       const trimmedContent = listContext.join("\n").trim();
       fs.writeFileSync(RequirementListPath, trimmedContent);
-    }
+    },
   );
   context.subscriptions.push(disposable);
   context.subscriptions.push(enableFilesExclude);
@@ -197,7 +201,7 @@ export function activate(context: vscode.ExtensionContext) {
     buildAddonPackage,
     MakeCustomPorgrams,
     BuildRelaseAddon,
-    AddAntiModule
+    AddAntiModule,
   );
 }
 
@@ -274,7 +278,7 @@ async function initSettingsJson() {
       // 深度合并配置，只更新缺失的部分
       const mergedSettings = deepMergeSettings(
         defaultSettings,
-        existingSettings
+        existingSettings,
       );
 
       // 写入合并后的配置
@@ -319,7 +323,7 @@ function deepMergeSettings(defaultSettings: any, existingSettings: any): any {
       ) {
         result[key] = deepMergeSettings(
           defaultSettings[key],
-          existingSettings[key]
+          existingSettings[key],
         );
       }
       // 对于其他情况，保留现有配置的值
@@ -356,7 +360,7 @@ async function updateFilesExclude(enabled: boolean, specificItems?: string[]) {
     // 检查是否存在 files.exclude 配置
     if (!settings.hasOwnProperty("files.exclude")) {
       vscode.window.showErrorMessage(
-        ".vscode/settings.json 中没有找到 files.exclude 配置"
+        ".vscode/settings.json 中没有找到 files.exclude 配置",
       );
       return;
     }
@@ -401,8 +405,8 @@ async function updateFilesExclude(enabled: boolean, specificItems?: string[]) {
           ? `files.exclude 中的指定项已启用: ${specificItems.join(", ")}`
           : "files.exclude 所有项已启用"
         : specificItems && specificItems.length > 0
-        ? `files.exclude 中的指定项已禁用: ${specificItems.join(", ")}`
-        : "files.exclude 所有项已禁用"
+          ? `files.exclude 中的指定项已禁用: ${specificItems.join(", ")}`
+          : "files.exclude 所有项已禁用",
     );
   } catch (err) {
     vscode.window.showErrorMessage(`操作失败: ${err}`);
@@ -424,7 +428,7 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
     {
       placeHolder: "请选择控制器版本",
       ignoreFocusOut: true,
-    }
+    },
   );
   // 选择控制器版本
   if (!controllerVersion) {
@@ -440,7 +444,7 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
     {
       placeHolder: "请选择addon服务类型",
       ignoreFocusOut: true,
-    }
+    },
   );
   if (!addonType) {
     vscode.window.showErrorMessage("未选择addon服务类型，操作已取消");
@@ -459,7 +463,7 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
       {
         placeHolder: "是否创建自定义指令",
         ignoreFocusOut: true,
-      }
+      },
     );
     if (customprogramsFlag) {
       if (customprogramsFlag.label == "Yes") {
@@ -473,7 +477,7 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
   }
 
   const rootPath = workspaceFolders[0].uri.fsPath;
-  const projectName = rootPath.split("\\").reverse()[0];
+  const projectName = path.basename(rootPath);
 
   // 创建addon配置文件
   const addonConfig = path.join(rootPath, `${projectName}_config.ini`);
@@ -498,7 +502,7 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
   // 创建addon启动文件
   const enterFile = path.join(
     rootPath,
-    addonType.label == "python" ? "main.py" : "addon.json"
+    addonType.label == "python" ? "main.py" : "addon.json",
   );
   if (!fs.existsSync(enterFile)) {
     fs.writeFileSync(enterFile, "");
@@ -541,12 +545,12 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
       { source: "server" },
       { source: "logic" },
       { source: "FlaskResponse" },
-      { source: "OldToNew_CustomPrograms.json" }
+      { source: "OldToNew_CustomPrograms.json" },
     );
   }
   fs.writeFileSync(
     path.join(rootPath, "package_log_pro.json"),
-    JSON.stringify(package_setting, null, 4)
+    JSON.stringify(package_setting, null, 4),
   );
 }
 
@@ -620,7 +624,7 @@ async function readIniFile(filePath: string): Promise<any> {
 // 写入 ini 文件的方法
 async function writeIniFile(
   filePath: string,
-  data: { [section: string]: { [option: string]: string } }
+  data: { [section: string]: { [option: string]: string } },
 ): Promise<boolean> {
   try {
     let iniString = "";
@@ -650,7 +654,7 @@ async function readAddonConfig(workspacePath: string): Promise<any> {
 // 写 addon 配置的方法
 async function writeAddonConfig(
   workspacePath: string,
-  data: any
+  data: any,
 ): Promise<boolean> {
   const packagPath = path.join(workspacePath, "package_log_pro.json");
   const packagsetting = JSON.parse(fs.readFileSync(packagPath, "utf-8"));
@@ -731,5 +735,77 @@ function downloadFileFromUrl(url: string, destPath: string): Promise<boolean> {
       resolve(false);
     });
   });
+}
+
+/**
+ * 发送 HTTPS GET 请求并返回响应数据
+ * @param url - 请求的 URL
+ * @returns Promise<string> - 返回响应数据的字符串形式
+ */
+function httpsGet(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const client = url.startsWith("https") ? https : http;
+
+    const request = client.get(url, (response) => {
+      let data = "";
+
+      // 处理重定向
+      if (
+        response.statusCode === 301 ||
+        response.statusCode === 302 ||
+        response.statusCode === 307
+      ) {
+        const redirectUrl = response.headers.location;
+        if (redirectUrl) {
+          // 递归调用，使用新的重定向URL
+          httpsGet(redirectUrl).then(resolve).catch(reject);
+          return;
+        } else {
+          reject(new Error("重定向失败: 无法获取重定向位置"));
+          return;
+        }
+      }
+
+      if (response.statusCode !== 200) {
+        reject(new Error(`请求失败: HTTP ${response.statusCode}`));
+        return;
+      }
+
+      // 接收数据
+      response.on("data", (chunk) => {
+        data += chunk;
+      });
+
+      // 数据接收完成
+      response.on("end", () => {
+        resolve(data);
+      });
+    });
+
+    request.on("error", (err) => {
+      reject(new Error(`请求出错: ${err.message}`));
+    });
+
+    request.setTimeout(30000, () => {
+      // 30秒超时
+      request.abort();
+      reject(new Error("请求超时"));
+    });
+  });
+}
+
+/**
+ * 根据文件类型获取模块配置
+ */
+function findModuleConfig(
+  asserts: Array<{ browser_download_url: string; name: string }>,
+  fileType: string,
+): { browser_download_url: string; name: string } {
+  const result = asserts.find((item) => item.name.endsWith(fileType));
+  if (!result) {
+    vscode.window.showErrorMessage(`未找到 ${fileType} 文件`);
+    throw new Error(`未找到 ${fileType} 文件`);
+  }
+  return result;
 }
 export function deactivate() {}
