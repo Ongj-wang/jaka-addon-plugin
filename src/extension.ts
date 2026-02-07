@@ -497,54 +497,38 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
 
   if (!fs.existsSync(addonConfig)) {
     writeIniFile(addonConfig, config_settings);
+    // 创建addon启动文件
+    const enterFile = path.join(
+      rootPath,
+      addonType.label == "python" ? "main.py" : "addon.json",
+    );
+    if (!fs.existsSync(enterFile)) {
+      fs.writeFileSync(enterFile, "");
+    }
   }
 
-  // 创建addon启动文件
-  const enterFile = path.join(
-    rootPath,
-    addonType.label == "python" ? "main.py" : "addon.json",
-  );
-  if (!fs.existsSync(enterFile)) {
-    fs.writeFileSync(enterFile, "");
-  }
   // python flask 服务代码
   if (add_customprogramsFlag) {
-    const server_path = path.join(rootPath, "server");
-    if (!fs.existsSync(server_path)) {
-      fs.mkdirSync(server_path);
-    }
-
+    // const server_path = path.join(rootPath, "server");
+    // if (!fs.existsSync(server_path)) {
+    //   fs.mkdirSync(server_path);
+    // }
     // 写服务路由方法
     // extractTarGzToWorkspace(context, "FlaskResponse");
     // 写日志管理器方法
   }
-
   // addon 打包配置
-  const package_setting = {
-    version: 2.0,
-    name: projectName,
-    depend: [],
-    transform: [],
-    no_transform: [
-      { source: addonType.label == "python" ? "main.py" : "addon.json" },
-      { source: `${projectName}_config.ini` },
-    ],
-    addon_config: `${projectName}_config.ini`,
-    version_check: true,
-    clear_code: true,
-    output: "output",
-    remote_dir: "/home/jakauser/",
-    debug_robot: [
-      "",
-      "",
-      controllerVersion.label == "v1.7.2" ? "1.7.2" : "3.2",
-    ],
-  };
+  const package_setting = await refrashPackageLog(
+    rootPath,
+    projectName,
+    controllerVersion.label,
+  );
+
   if (add_customprogramsFlag) {
     package_setting["no_transform"].push(
-      { source: "server" },
-      { source: "logic" },
-      { source: "FlaskResponse" },
+      // { source: "server" },
+      // { source: "logic" },
+      // { source: "FlaskResponse" },
       { source: "OldToNew_CustomPrograms.json" },
     );
   }
@@ -806,6 +790,177 @@ function findModuleConfig(
     vscode.window.showErrorMessage(`未找到 ${fileType} 文件`);
     throw new Error(`未找到 ${fileType} 文件`);
   }
+  return result;
+}
+/**
+ *
+ */
+async function refrashPackageLog(
+  workspace: string,
+  projectName: string,
+  controllerVersion: string,
+) {
+  /**
+   * 向打包配置中添加项
+   */
+  type packageType = {
+    version: number;
+    name: string;
+    depend: any[];
+    transform: { source: string }[]; // 显式声明 transform 类型
+    no_transform: { source: string }[];
+    addon_config: string;
+    version_check: boolean;
+    clear_code: boolean;
+    output: string;
+    remote_dir: string;
+    debug_robot: string[];
+  };
+
+  function addPackageItem(
+    key: "transform" | "no_transform",
+    item: { source: string },
+  ): void {
+    const index = package_setting[key].findIndex(
+      (existingItem) =>
+        existingItem.source == item.source ||
+        existingItem.source == `./${item.source}`,
+    );
+    if (index === -1) {
+      package_setting[key].push(item);
+    } else {
+      package_setting[key][index] = item;
+    }
+  }
+  const configs = await readIniFile(
+    path.join(workspace, `${projectName}_config.ini`),
+  );
+  const packagPath = path.join(workspace, "package_log_pro.json");
+  let package_setting: packageType = {
+    version: 2.0,
+    name: projectName,
+    depend: [],
+    transform: [],
+    no_transform: [
+      { source: configs.AddOnInfo.service },
+      { source: `${projectName}_config.ini` },
+    ],
+    addon_config: `${projectName}_config.ini`,
+    version_check: true,
+    clear_code: true,
+    output: "output",
+    remote_dir: "/home/jakauser/",
+    debug_robot: ["", "", controllerVersion == "v1.7.2" ? "1.7.2" : "3.2"],
+  };
+  if (fs.existsSync(packagPath)) {
+    package_setting = JSON.parse(
+      fs.readFileSync(packagPath, "utf-8"),
+    ) as packageType;
+  }
+  if (configs.Requirement != undefined) {
+    addPackageItem("no_transform", { source: configs.Requirement.dir });
+    addPackageItem("no_transform", { source: configs.Requirement.list });
+  }
+  if (configs.AddOnInfo.service.endsWith(".py")) {
+    const myModules = await extractCustomModules(
+      path.join(workspace, configs.AddOnInfo.service),
+      workspace,
+    );
+    myModules.map((module) => {
+      addPackageItem("transform", { source: module });
+    });
+  }
+
+  return package_setting;
+}
+/**
+ *
+ */
+async function extractCustomModules(
+  scriptPath: string,
+  workspaceRoot: string,
+): Promise<string[]> {
+  const visitedModules = new Set<string>();
+  const result: string[] = [];
+  /**
+   * 递归解析模块文件
+   * @param modulePath - 模块文件路径
+   */
+  async function parseModule(modulePath: string): Promise<void> {
+    if (visitedModules.has(modulePath)) return; // 防止重复解析
+    visitedModules.add(modulePath);
+
+    try {
+      const content = fs.readFileSync(modulePath, "utf-8");
+      const lines = content.split("\n");
+
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+
+        // 匹配 import 语句
+        const importMatch = trimmedLine.match(/^import\s+([a-zA-Z_][\w.]*)/);
+        if (importMatch) {
+          const moduleName = importMatch[1];
+          await processModule(moduleName, modulePath);
+        }
+
+        // 匹配 from ... import 语句
+        const fromImportMatch = trimmedLine.match(
+          /^from\s+(\w+)(?:\.\w+)*?\s+import/,
+        );
+        if (fromImportMatch) {
+          const moduleName = fromImportMatch[1];
+          await processModule(moduleName, modulePath);
+        }
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(`解析模块失败: ${error}`);
+    }
+  }
+
+  /**
+   * 处理模块名称，判断是否为自定义模块并递归解析
+   * @param moduleName - 模块名称
+   * @param currentScriptPath - 当前脚本路径
+   */
+  async function processModule(
+    moduleName: string,
+    currentScriptPath: string,
+  ): Promise<void> {
+    // 忽略标准库模块（简单过滤常见标准库）
+    const stdLibModules = [
+      "os",
+      "sys",
+      "json",
+      "re",
+      "pathlib",
+      "typing",
+      "collections",
+      "datetime",
+    ];
+    if (stdLibModules.includes(moduleName)) return;
+
+    // 构造模块文件路径
+    const moduleFileName = path.join(workspaceRoot, `${moduleName}.py`);
+    const moduleDir = path.join(workspaceRoot, moduleName);
+
+    // 检查模块文件是否存在
+    if (fs.existsSync(moduleFileName)) {
+      if (!result.includes(moduleName)) {
+        result.push(`${moduleName}.py`); // 添加到结果数组
+      }
+      await parseModule(moduleFileName); // 递归解析子模块
+    }
+    if (fs.existsSync(moduleDir)) {
+      if (!result.includes(moduleName)) {
+        result.push(moduleName);
+      }
+    }
+  }
+
+  // 开始解析主脚本
+  await parseModule(scriptPath);
+
   return result;
 }
 export function deactivate() {}
