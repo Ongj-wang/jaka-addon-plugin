@@ -436,23 +436,24 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
     return;
   }
   // 选择addon脚本类型
-  const addonType = await vscode.window.showQuickPick(
-    [
-      { label: "python", description: "Python 脚本" },
-      { label: "node-red", description: "node_red" },
-    ],
-    {
-      placeHolder: "请选择addon服务类型",
-      ignoreFocusOut: true,
-    },
-  );
+  const ScriptType = [
+    { label: "python", description: "Python 脚本" },
+    { label: "node-red", description: "node_red" },
+  ];
+  if (controllerVersion.label == "v3.x") {
+    ScriptType[0].label = "python3";
+  }
+  const addonType = await vscode.window.showQuickPick(ScriptType, {
+    placeHolder: "请选择addon服务类型",
+    ignoreFocusOut: true,
+  });
   if (!addonType) {
     vscode.window.showErrorMessage("未选择addon服务类型，操作已取消");
     return;
   }
   // 询问是否创建自定义指令
   let add_customprogramsFlag = false;
-  if (addonType.label == "python") {
+  if (addonType.label.startsWith("python")) {
     const customprogramsFlag = await vscode.window.showQuickPick(
       [
         {
@@ -477,7 +478,16 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
   }
 
   const rootPath = workspaceFolders[0].uri.fsPath;
-  const projectName = path.basename(rootPath);
+  let projectName = path.basename(rootPath);
+
+  // 要求用户输入项目名称
+  const projectNameInput = await vscode.window.showInputBox({
+    placeHolder: "请输入项目名称(默认使用当前工作区名称)",
+    ignoreFocusOut: true,
+  });
+  if (projectNameInput) {
+    projectName = projectNameInput;
+  }
 
   // 创建addon配置文件
   const addonConfig = path.join(rootPath, `${projectName}_config.ini`);
@@ -490,8 +500,9 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
       type: "3",
       portal: "1",
       languageType: `${addonType.label}`,
-      service: `${addonType.label == "python" ? "main.py" : "addon.json"}`,
+      service: `${addonType.label.startsWith("python") ? "main.py" : "addon.json"}`,
       serviceenabled: "1",
+      url: `http://localhost/${projectName}/client/`,
     },
   };
 
@@ -500,7 +511,7 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
     // 创建addon启动文件
     const enterFile = path.join(
       rootPath,
-      addonType.label == "python" ? "main.py" : "addon.json",
+      addonType.label.startsWith("python") ? "main.py" : "addon.json",
     );
     if (!fs.existsSync(enterFile)) {
       fs.writeFileSync(enterFile, "");
