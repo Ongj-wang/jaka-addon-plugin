@@ -60,7 +60,7 @@ export function activate(context: vscode.ExtensionContext) {
       // 检查是否有自定义指令配置文件
       const addonProFiles = await findAddonProFiles("**/*.addonpro");
       if (addonProFiles.length > 0) {
-        await make_custom_porgrams();
+        await make_custom_programs();
       }
       // 校验是否由python依赖配置
       const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -79,10 +79,10 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   //
-  const MakeCustomPorgrams = vscode.commands.registerCommand(
-    "extension.MakeCustomPorgrams",
+  const MakeCustomprograms = vscode.commands.registerCommand(
+    "extension.MakeCustomprograms",
     async () => {
-      make_custom_porgrams();
+      make_custom_programs();
     },
   );
 
@@ -199,7 +199,7 @@ export function activate(context: vscode.ExtensionContext) {
     enableAddonFilesExclude,
     addonFramework,
     buildAddonPackage,
-    MakeCustomPorgrams,
+    MakeCustomprograms,
     BuildRelaseAddon,
     AddAntiModule,
   );
@@ -550,7 +550,7 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
 }
 
 //
-async function make_custom_porgrams() {
+async function make_custom_programs() {
   if (!vscode.workspace.workspaceFolders) {
     vscode.window.showErrorMessage("请先打开一个工作区（Workspace）");
     return;

@@ -44,13 +44,13 @@ class AddonCustomBlock {
     AddonName: string,
     CommandName: string,
     CommandType: string | null = null,
-    colour: string | null = null
+    colour: string | null = null,
   ): void {
     this.AddonName = AddonName;
     this.CommandName = CommandName;
     this.CommandType = CommandType || "singleline";
     this.block_type = `${this.generateHash(
-      CommandName
+      CommandName,
     )}_${AddonName}@${CommandName}`;
     this.block_index = 0;
     this.atter_number = 0;
@@ -74,16 +74,7 @@ class AddonCustomBlock {
 
   defineBlock(): any {
     // 创建 XML 结构
-    return {
-      block: {
-        $: {
-          type: this.block_type,
-          x: "20",
-          y: "100",
-        },
-        field: [],
-      },
-    };
+    return `<block type="${this.block_type}" x="20" y="100">`;
   }
 
   setArgText(lang: string, name: string, text: string): void {
@@ -101,17 +92,7 @@ class AddonCustomBlock {
     const argName = `${name}@${this.AddonName}@${this.CommandName}`;
 
     // 添加 XML 元素
-    if (!this.XML_root.block.field) {
-      this.XML_root.block.field = [];
-    }
-
-    this.XML_root.block.field.push({
-      $: {
-        name: name,
-        disabled: "false",
-      },
-      _: `#${argName}`,
-    });
+    this.XML_root += `<field name="${name}" disabled="false">#${argName}</field>`;
 
     const args0 = {
       type: "field_label",
@@ -135,21 +116,22 @@ class AddonCustomBlock {
 
   addSelect(
     name: string,
-    options: { [lang: string]: string | string[] }
+    options: { [lang: string]: string | string[] },
   ): number {
     this.atter_number += 1;
 
     // 添加 XML 元素
-    if (!this.XML_root.block.field) {
-      this.XML_root.block.field = [];
-    }
+    // if (!this.XML_root.block.field) {
+    //   this.XML_root.block.field = [];
+    // }
 
-    this.XML_root.block.field.push({
-      $: {
-        name: name,
-      },
-      _: "0",
-    });
+    // this.XML_root.block.field.push({
+    //   $: {
+    //     name: name,
+    //   },
+    //   _: "0",
+    // });
+    this.XML_root += `<field name="${name}">0</field>`;
 
     const optionList: [string, string][] = [];
     const zhOptions = options["zh"];
@@ -190,7 +172,7 @@ class AddonCustomBlock {
           this.setArgText(
             lang,
             `${name}@${this.AddonName}@${this.CommandName}${index}`,
-            t
+            t,
           );
         });
       }
@@ -202,37 +184,13 @@ class AddonCustomBlock {
   addNumberInput(
     name: string,
     value: string | null,
-    disable: boolean = false
+    disable: boolean = false,
   ): number {
     this.atter_number += 1;
 
     // 添加 XML 元素
-    if (!this.XML_root.block.value) {
-      this.XML_root.block.value = [];
-    }
-
-    this.XML_root.block.value.push({
-      $: {
-        name: name,
-        disabled: disable ? "true" : "false",
-      },
-      shadow: [
-        {
-          $: {
-            type: "math_number",
-            disabled: disable ? "true" : "false",
-          },
-          field: [
-            {
-              $: {
-                name: "NUM",
-              },
-              _: value || "",
-            },
-          ],
-        },
-      ],
-    });
+    const showEnabled = disable ? "true" : "false";
+    this.XML_root += `<value name="${name}" disabled="${showEnabled}"><shadow type="math_number" disabled="${showEnabled}"><field name="NUM">${value || ""}</field></shadow></value>`;
 
     const args0 = {
       type: "input_value",
@@ -253,37 +211,11 @@ class AddonCustomBlock {
   addStringInput(
     name: string,
     value: string,
-    disable: boolean = false
+    disable: boolean = false,
   ): number {
     this.atter_number += 1;
-
-    // 添加 XML 元素
-    if (!this.XML_root.block.value) {
-      this.XML_root.block.value = [];
-    }
-
-    this.XML_root.block.value.push({
-      $: {
-        name: name,
-        disabled: disable ? "true" : "false",
-      },
-      shadow: [
-        {
-          $: {
-            type: "obj_text",
-            disabled: disable ? "true" : "false",
-          },
-          field: [
-            {
-              $: {
-                name: "TEXT",
-              },
-              _: `#${value}`,
-            },
-          ],
-        },
-      ],
-    });
+    const showEnable = disable ? "true" : "false";
+    this.XML_root += `<value name="${name}" disabled="${showEnable}"><shadow type="obj_text" disabled="${showEnable}"><field name="TEXT">#${value || ""}</field></shadow></value>`;
 
     const arg = {
       type: "input_value",
@@ -305,18 +237,7 @@ class AddonCustomBlock {
     this.atter_number += 1;
 
     // 添加 XML 元素
-    if (!this.XML_root.block.value) {
-      this.XML_root.block.value = [];
-    }
-
-    this.XML_root.block.value.push({
-      $: {
-        name: name,
-        disabled: "false",
-      },
-      // 注意：在原始Python代码中，这部分被注释掉了
-    });
-
+    this.XML_root += `<value name="${name}" disabled="false"></value>`;
     const args0 = {
       type: "input_value",
       name: name,
@@ -335,7 +256,7 @@ class AddonCustomBlock {
 
   addSubCommandBlock(
     name: string,
-    context: { [lang: string]: string }
+    context: { [lang: string]: string },
   ): number {
     // 添加 statement XML 元素
     if (!this.XML_root.block.statement) {
@@ -349,17 +270,8 @@ class AddonCustomBlock {
     });
 
     // 添加 placeholder field
-    if (!this.XML_root.block.field) {
-      this.XML_root.block.field = [];
-    }
-
-    this.XML_root.block.field.push({
-      $: {
-        name: `${name}placeholder`,
-        disabled: "false",
-      },
-      _: `#${name}@${this.AddonName}@${this.CommandName}`,
-    });
+    const statement_name = `JAKA_CUSTOM_SUBSTACK${this.block_index}`;
+    this.XML_root += `<statement name="${statement_name}"></statement><field name="${name}placeholder" disabled="false">#${name}@${this.AddonName}@${this.CommandName}</field>`;
 
     this.block_index += 1;
     const argsName = `args${this.block_index}`;
@@ -376,7 +288,7 @@ class AddonCustomBlock {
         type: "field_label",
         name: `${name}placeholder`,
         text: `${name}@${this.AddonName}@${this.CommandName}`,
-      }
+      },
     );
 
     this.Command_json.initJson[`message${this.block_index}`] = "%1 %2";
@@ -385,7 +297,7 @@ class AddonCustomBlock {
       this.setArgText(
         lang,
         `${name}@${this.AddonName}@${this.CommandName}`,
-        context[lang]
+        context[lang],
       );
     }
 
@@ -393,15 +305,13 @@ class AddonCustomBlock {
   }
 
   debugWriteXml(path: string): void {
-    const builder = new Builder();
-    const xml = builder.buildObject(this.XML_root);
-    fs.writeFileSync(path, xml);
+    fs.writeFileSync(path, this.XML_root);
   }
 
   compileJson(): void {
     this.Command_json.initJson[`message0`] = Array.from(
       { length: this.atter_number },
-      (_, i) => `%${i + 1}`
+      (_, i) => `%${i + 1}`,
     ).join(" ");
 
     if (["Multiline", "Singleline"].includes(this.CommandType)) {
@@ -409,7 +319,7 @@ class AddonCustomBlock {
       this.Command_json.initJson.nextStatement = null;
     } else if (
       ["output_array", "output_number", "output_string"].includes(
-        this.CommandType
+        this.CommandType,
       )
     ) {
       this.Command_json.initJson.extensions = this.CommandType;
@@ -417,7 +327,7 @@ class AddonCustomBlock {
 
     // 将 XML 对象序列化为字符串
     const builder = new Builder();
-    this.Command_json.xml = builder.buildObject(this.XML_root);
+    this.Command_json.xml = this.XML_root + "</block>";
   }
 
   buildCommandJson(openUrl: string = ""): any {
@@ -453,14 +363,14 @@ class AddonCustomBlock {
           this.addNumberInput(
             commandConfig.name,
             commandConfig.value || "",
-            commandConfig.disable || false
+            commandConfig.disable || false,
           );
           break;
         case "string_input":
           this.addStringInput(
             commandConfig.name,
             commandConfig.value || "",
-            commandConfig.disable || false
+            commandConfig.disable || false,
           );
           break;
         case "list_input":
@@ -479,10 +389,11 @@ class AddonCustomBlock {
 function pickVariable(atter: string, context: { [key: string]: any }): any {
   const atterPatterns: { [key: string]: RegExp } = {
     text: /:\s*(\w+)/,
-    number_input: /\((?:\s*(-?\d+(?:\.\d+)?)\s*|\s*)\)\s*(\w+)/,
+    number_input: /\((?:\s*(-?\d+(?:\.\d+)?)\s*|\s*)\)\s*(\!?\w+)/,
     list_input: /\[\]\s*(\w+)/,
     select: /\^\s*(\w+)/,
     statement: /#\s*(\w+)/,
+    string_input: /"(\s*[^"\s]*\s*)"\s*(\!?\w+)/,
   };
 
   let atterMatch: RegExpExecArray | null = null;
@@ -518,15 +429,29 @@ function pickVariable(atter: string, context: { [key: string]: any }): any {
       }
     }
   } else if (atterType === "number_input") {
-    result.value = atterMatch[1];
-    result.name = atterMatch[2];
+    result.value = atterMatch[1] || " ";
+    if (atterMatch[2].startsWith("!")) {
+      result.disable = true;
+      result.name = atterMatch[2].slice(1);
+    } else {
+      result.name = atterMatch[2];
+    }
+    console.log("number_input:", result);
+  } else if (atterType === "string_input") {
+    result.value = atterMatch[1] || " ";
+    if (atterMatch[2].startsWith("!")) {
+      result.disable = true;
+      result.name = atterMatch[2].slice(1);
+    } else {
+      result.name = atterMatch[2];
+    }
   }
 
   return result;
 }
 
 function readDescription(
-  description: string
+  description: string,
 ): [string, string, string, { [key: string]: any }] {
   const patterns: { [key: string]: RegExp } = {
     line_pattern: /\*\*\*/,
@@ -554,7 +479,6 @@ function readDescription(
       }
     }
   }
-  console.log(atters);
   // 提取上下文
   const context: { [key: string]: { [lang: string]: string } } = {};
   const contextMatches = description.matchAll(/\s*-\s*(\w+)\s*=\s*([^;]+);/g);
@@ -595,6 +519,7 @@ function readDescription(
       index += 1;
     }
   }
+  console.log(variable);
 
   // 判断指令类型
   let commandType = "Singleline";
@@ -626,7 +551,7 @@ function drawCommandBlock(ConfigPath: string): void {
   const rootPath = workspaceFolders[0].uri.fsPath;
   const package_setting_path = path.join(rootPath, "package_log_pro.json");
   const package_setting = JSON.parse(
-    fs.readFileSync(package_setting_path, "utf-8")
+    fs.readFileSync(package_setting_path, "utf-8"),
   );
 
   const content = fs.readFileSync(ConfigPath, "utf-8");
@@ -650,7 +575,7 @@ function drawCommandBlock(ConfigPath: string): void {
 
   const targetPath = path.join(
     vscode.workspace.workspaceFolders![0].uri.fsPath,
-    "OldToNew_CustomPrograms.json"
+    "OldToNew_CustomPrograms.json",
   );
   fs.writeFileSync(targetPath, JSON.stringify(commandJson, null, 4));
 }
