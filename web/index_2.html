@@ -1,0 +1,86 @@
+<!-- web/index.html -->
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Scratch Block Designer</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: sans-serif;
+        display: flex;
+        height: 100vh;
+      }
+      #sidebar {
+        width: 300px;
+        padding: 16px;
+        border-right: 1px solid #ddd;
+        overflow-y: auto;
+      }
+      #preview {
+        flex: 1;
+      }
+      #blocklyDiv {
+        height: 100%;
+        background: white;
+      }
+      button {
+        margin: 4px 4px 4px 0;
+        padding: 4px 8px;
+      }
+      .block-item {
+        padding: 6px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+      }
+      .block-item.active {
+        background: #e0f0ff;
+      }
+      input,
+      select {
+        width: 100%;
+        margin: 4px 0;
+        padding: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="sidebar">
+      <h3>Blocks</h3>
+      <button onclick="addNewBlock()">+ New Block</button>
+      <div id="blockList"></div>
+
+      <div id="blockEditor" style="margin-top: 20px; display: none">
+        <input id="blockName" placeholder="Block name" />
+        <select id="blockType">
+          <option value="statement">Stack Block</option>
+          <option value="reporter">Reporter</option>
+          <option value="boolean">Boolean</option>
+          <option value="hat">Hat</option>
+        </select>
+        <input type="color" id="blockColor" value="#70a9d4" />
+
+        <h4>Fields</h4>
+        <button onclick="addField('label')">Label</button>
+        <button onclick="addField('input')">Text Input</button>
+        <button onclick="addField('number')">Number</button>
+        <button onclick="addField('dropdown')">Dropdown</button>
+        <button onclick="addField('statement')">Statement Slot</button>
+        <div id="fieldsList"></div>
+
+        <button onclick="deleteCurrentBlock()" style="background: #ffcccc">
+          Delete Block
+        </button>
+      </div>
+    </div>
+
+    <div id="preview">
+      <div id="blocklyDiv"></div>
+    </div>
+
+    <script src="./src/blockly_compressed.js"></script>
+    <script src="./src/blocks_compressed.js"></script>
+    <script src="./src/javascript_compressed.js"></script>
+    <script src="designer.js"></script>
+  </body>
+</html>

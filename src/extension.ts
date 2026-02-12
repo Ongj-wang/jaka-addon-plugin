@@ -3,8 +3,11 @@ import * as http from "http";
 import * as https from "https";
 import * as path from "path";
 import * as vscode from "vscode";
-import { drawCommandBlock } from "./CommendGenerte";
 import { buildAddon, release_build } from "./buildMethods";
+import { drawCommandBlock } from "./CommendGenerte";
+import { createServer } from "./EditorServer";
+
+let server: http.Server;
 
 export function activate(context: vscode.ExtensionContext) {
   const disposable = vscode.commands.registerCommand(
@@ -192,6 +195,30 @@ export function activate(context: vscode.ExtensionContext) {
       fs.writeFileSync(RequirementListPath, trimmedContent);
     },
   );
+  const ScratchEditor = vscode.commands.registerCommand(
+    "extension.open_scratch_editor",
+    async () => {
+      const port = 8080;
+      const webDir = path.join(context.extensionPath, "web");
+
+      // 获取当前工作区根路径（用于读写 CustomCommand.json）
+      const workspaceFolder =
+        vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!workspaceFolder) {
+        vscode.window.showWarningMessage("请先打开一个工作区文件夹");
+        return;
+      }
+
+      // 关闭旧服务器（避免端口占用）
+      if (server) server.close();
+
+      // 创建 HTTP 服务器（静态 + API）
+      server = createServer(webDir, workspaceFolder, port);
+      server.listen(port, "127.0.0.1", () => {
+        vscode.env.openExternal(vscode.Uri.parse(`http://localhost:${port}`));
+      });
+    },
+  );
   context.subscriptions.push(disposable);
   context.subscriptions.push(enableFilesExclude);
   context.subscriptions.push(disableFilesExclude);
@@ -202,7 +229,13 @@ export function activate(context: vscode.ExtensionContext) {
     MakeCustomprograms,
     BuildRelaseAddon,
     AddAntiModule,
+    ScratchEditor,
   );
+
+  // 插件停用时关闭服务器
+  context.subscriptions.push({
+    dispose: () => server?.close(),
+  });
 }
 
 // 初始化settings.json的辅助函数

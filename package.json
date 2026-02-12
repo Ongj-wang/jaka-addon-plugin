@@ -19,6 +19,10 @@
       {
         "command": "extension.AddAntiModule",
         "title": "addon-plugin:add anti module"
+      },
+      {
+        "command": "extension.open_scratch_editor",
+        "title": "addon-plugin:open scratch editor"
       }
     ]
   },
