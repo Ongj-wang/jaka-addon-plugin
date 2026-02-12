@@ -536,8 +536,8 @@ function readDescription(
   for (const match of paramMatches) {
     parameters[match[1].toLowerCase()] = match[2];
   }
-  const openUrl = parameters.openurl || "";
-  const colour = parameters.colour || "#FFBF00";
+  const openUrl = parameters.openurl ?? "";
+  const colour = parameters.colour ?? parameters.color ?? "#FFBF00";
   return [commandType, openUrl, colour, variable];
 }
 
