@@ -68,6 +68,7 @@
   "files": [
     "resources/**/*"
   ],
+  "icon": "source/01 CMYK模式 logo-透明底.png",
   "license": "MIT",
   "main": "./out/extension.js",
   "name": "jaka-addon-plugin",
