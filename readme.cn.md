@@ -43,5 +43,5 @@ MIT License
 
 ## 支持
 
-- 仓库地址: https://gitee.com/wanghonejie/auto-settings-generator.git
+- 仓库地址: https://gitee.com/wanghonejie/jaka-addon-plugin.git
 - 提交问题: 通过仓库的 Issues 页面

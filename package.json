@@ -3,28 +3,6 @@
   "contributes": {
     "commands": [
       {
-        "command": "extension.generateSettingsJson",
-        "description": "生成并格式化 .settings.json 配置文件",
-        "shortTitle": "format settings",
-        "title": "addon-plugin:format settings.json"
-      },
-      {
-        "command": "extension.enableFilesExclude",
-        "description": "启用文件排除规则",
-        "shortTitle": "hide files",
-        "title": "addon-plugin:enableFilesExclude"
-      },
-      {
-        "command": "extension.disableFilesExclude",
-        "description": "禁用文件排除规则",
-        "title": "addon-plugin:disableFilesExclude"
-      },
-      {
-        "command": "extension.enableAddonFilesExclude",
-        "description": "启用控制器环境中的addon文件排除规则",
-        "title": "addon-plugin:enableAddonFilesExclude"
-      },
-      {
         "command": "extension.CreatePyaddon",
         "description": "创建一个 AddOn 插件项目",
         "title": "addon-plugin:make new addon"
@@ -37,10 +15,6 @@
         "command": "extension.MakeCustomprograms",
         "shortTitle": "make custom programs",
         "title": "addon-plugin:make custom programs"
-      },
-      {
-        "command": "extension.BuildRelaseAddon",
-        "title": "addon-plugin:build release addon"
       },
       {
         "command": "extension.AddAntiModule",
@@ -74,7 +48,7 @@
   "name": "jaka-addon-plugin",
   "repository": {
     "type": "git",
-    "url": "https://gitee.com/wanghonejie/auto-settings-generator.git"
+    "url": "https://gitee.com/wanghonejie/jaka-addon-plugin.git"
   },
   "scripts": {
     "compile": "tsc -p ./",

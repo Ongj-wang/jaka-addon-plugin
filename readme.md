@@ -43,5 +43,5 @@ MIT License
 
 ## Support
 
-Repository URL: https://gitee.com/wanghonejie/auto-settings-generator.git
+Repository URL: https://gitee.com/wanghonejie/jaka-addon-plugin.git
 Report Issues: Through the repository's Issues page
