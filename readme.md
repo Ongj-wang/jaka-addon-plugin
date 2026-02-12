@@ -1,51 +1,47 @@
 # JAKA AddOn Plugin
 
-JAKA Addon 插件开发工具 - 用于简化 JAKA 机器人 AddOn 项目的创建、构建和管理
+JAKA Addon Plugin Development Tool - Simplifies the creation, building, and management of JAKA robot AddOn projects.
 
-## 功能特性
+## Features
 
-- **快速创建 AddOn 项目** - 通过命令快速生成标准的 AddOn 项目结构
-- **配置文件生成** - 自动创建并格式化 .settings.json 配置文件
-- **文件管理** - 智能启用/禁用文件排除规则
-- **构建支持** - 支持 JAKA AddOn 项目的构建
-- **复制模块** - 添加 python 模块支持
+- **Quick AddOn Project Creation** - Rapidly generate standard AddOn project structures via commands.
+- **Configuration File Generation** - Automatically create and format .settings.json configuration files.
+- **File Management** - Smart enable/disable file exclusion rules.
+- **Build Support** - Supports building JAKA AddOn projects.
+- **Module Copying** - Adds Python module support.
 
-## 使用方法
+## Usage
 
-### 命令列表
+### Command List
 
-通过 `Ctrl+Shift+P` 打开命令面板，输入以下命令：
+Open the command palette with Ctrl+Shift+P and enter the following commands:
 
-- `addon-plugin:format settings.json` - 生成并格式化 .settings.json 配置文件
-- `addon-plugin:enableFilesExclude` - 启用文件排除规则
-- `addon-plugin:disableFilesExclude` - 禁用文件排除规则
-- `addon-plugin:enableAddonFilesExclude` - 启用控制器环境中的 addon 文件排除规则
-- `addon-plugin:make new addon` - 创建一个 AddOn 插件项目
-- `addon-plugin:build addon` - 构建开发版 addon
-- `addon-plugin:make custom porgrams` - 构建自定义指令
-- `addon-plugin:build release addon` - 构建发布版 addon
-- `addon-plugin:add anti module` - 添加 python 辅助开放模组
+- `addon-plugin:format settings.json` - Generate and format the .settings.json configuration file.
+- `addon-plugin:enableFilesExclude` - Enable file exclusion rules.
+- `addon-plugin:disableFilesExclude` - Disable file exclusion rules.
+- `addon-plugin:enableAddonFilesExclude` - Enable addon file exclusion rules in the controller environment.
+- `addon-plugin:make new addon` - Create a new AddOn plugin project.
+- `addon-plugin:build addon` - Build the development version of the addon.
+- `addon-plugin:make custom programs` - Build custom instructions.
+- `addon-plugin:build release addon` - Build the release version of the addon.
+- `addon-plugin:add anti module` - Add Python auxiliary open modules.
 
-### 快速开始
+### Quick Start
 
-1. 打开您的 JAKA AddOn 项目文件夹
-2. 按 `Ctrl+Shift+P` 打开命令面板
-3. 输入 `addon-plugin:make new addon` 创建新的 AddOn 项目
-4. 根据需要使用其他功能
+1. Open your JAKA AddOn project folder.
+2. Press Ctrl+Shift+P to open the command palette.
+3. Enter addon-plugin:make new addon to create a new AddOn project.
+4. Use other features as needed.
 
-## 配置
+## Contributing
 
-（如果有配置项的话）
+Feel free to submit Issues and Pull Requests to improve this plugin.
 
-## 贡献
-
-欢迎提交 Issue 和 Pull Request 来改进此插件。
-
-## 许可证
+## License
 
 MIT License
 
-## 支持
+## Support
 
-- 仓库地址: https://gitee.com/wanghonejie/auto-settings-generator.git
-- 提交问题: 通过仓库的 Issues 页面
+Repository URL: https://gitee.com/wanghonejie/auto-settings-generator.git
+Report Issues: Through the repository's Issues page
