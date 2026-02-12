@@ -16,14 +16,9 @@ JAKA Addon Plugin Development Tool - Simplifies the creation, building, and mana
 
 Open the command palette with Ctrl+Shift+P and enter the following commands:
 
-- `addon-plugin:format settings.json` - Generate and format the .settings.json configuration file.
-- `addon-plugin:enableFilesExclude` - Enable file exclusion rules.
-- `addon-plugin:disableFilesExclude` - Disable file exclusion rules.
-- `addon-plugin:enableAddonFilesExclude` - Enable addon file exclusion rules in the controller environment.
 - `addon-plugin:make new addon` - Create a new AddOn plugin project.
 - `addon-plugin:build addon` - Build the development version of the addon.
 - `addon-plugin:make custom programs` - Build custom instructions.
-- `addon-plugin:build release addon` - Build the release version of the addon.
 - `addon-plugin:add anti module` - Add Python auxiliary open modules.
 
 ### Quick Start

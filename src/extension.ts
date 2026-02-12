@@ -420,21 +420,22 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
     return;
   }
   // 添加控制器版本选择
-  const controllerVersion = await vscode.window.showQuickPick(
-    [
-      { label: "v1.7.2", description: "适用于旧版控制器" },
-      { label: "v3.x", description: "适用于新版控制器" },
-    ],
-    {
-      placeHolder: "请选择控制器版本",
-      ignoreFocusOut: true,
-    },
-  );
-  // 选择控制器版本
-  if (!controllerVersion) {
-    vscode.window.showErrorMessage("未选择控制器版本，操作已取消");
-    return;
-  }
+  // const controllerVersion = await vscode.window.showQuickPick(
+  //   [
+  //     { label: "v1.7.2", description: "适用于旧版控制器" },
+  //     { label: "v3.x", description: "适用于新版控制器" },
+  //   ],
+  //   {
+  //     placeHolder: "请选择控制器版本",
+  //     ignoreFocusOut: true,
+  //   },
+  // );
+  // // 选择控制器版本
+  // if (!controllerVersion) {
+  //   vscode.window.showErrorMessage("未选择控制器版本，操作已取消");
+  //   return;
+  // }
+  const controllerVersion = { label: "v3.x", description: "适用于新版控制器" };
   // 选择addon脚本类型
   const ScriptType = [
     { label: "python", description: "Python 脚本" },
@@ -444,7 +445,7 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
     ScriptType[0].label = "python3";
   }
   const addonType = await vscode.window.showQuickPick(ScriptType, {
-    placeHolder: "请选择addon服务类型",
+    placeHolder: "Please select language type",
     ignoreFocusOut: true,
   });
   if (!addonType) {
@@ -462,7 +463,7 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
         { label: "No" },
       ],
       {
-        placeHolder: "是否创建自定义指令",
+        placeHolder: "Whether to use custom programs?",
         ignoreFocusOut: true,
       },
     );
@@ -482,7 +483,8 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
 
   // 要求用户输入项目名称
   const projectNameInput = await vscode.window.showInputBox({
-    placeHolder: "请输入项目名称(默认使用当前工作区名称)",
+    placeHolder: `Please enter project name(default: ${projectName})`,
+    // 请输入项目名称(默认使用当前工作区名称)",
     ignoreFocusOut: true,
   });
   if (projectNameInput) {
