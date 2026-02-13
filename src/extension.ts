@@ -5,9 +5,10 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { buildAddon, release_build } from "./buildMethods";
 import { drawCommandBlock } from "./CommandGenerate";
-import { createServer } from "./EditorServer";
+import { createServer, lastRequestTime } from "./EditorServer";
 
 let server: http.Server;
+let timeoutInterval: NodeJS.Timeout | null = null; // 存储定时器引用
 
 export function activate(context: vscode.ExtensionContext) {
   const disposable = vscode.commands.registerCommand(
@@ -195,7 +196,7 @@ export function activate(context: vscode.ExtensionContext) {
       fs.writeFileSync(RequirementListPath, trimmedContent);
     },
   );
-  const ScratchEditor = vscode.commands.registerCommand(
+  const StartScratchEditor = vscode.commands.registerCommand(
     "extension.open_scratch_editor",
     async () => {
       const port = 8080;
@@ -214,27 +215,53 @@ export function activate(context: vscode.ExtensionContext) {
 
       // 创建 HTTP 服务器（静态 + API）
       server = createServer(webDir, workspaceFolder, port);
+
+      // 定时器：每分钟检查一次是否超时
+      timeoutInterval = setInterval(() => {
+        const timeoutMinutes: number = 10;
+        const currentTime = Date.now();
+        if (currentTime - lastRequestTime > timeoutMinutes * 60 * 1000) {
+          // 超过设定时间未收到请求，关闭服务器
+          vscode.window.showInformationMessage(
+            `服务器因长时间无请求已自动关闭（超时时间：${timeoutMinutes}分钟）`,
+          );
+          server.close();
+          if (timeoutInterval != null) {
+            clearInterval(timeoutInterval); // 清除定时器
+          }
+          timeoutInterval = null;
+        }
+      }, 5 * 1000); // 每分钟检查一次
+
       server.listen(port, "127.0.0.1", () => {
         vscode.env.openExternal(vscode.Uri.parse(`http://localhost:${port}`));
       });
     },
   );
-  context.subscriptions.push(disposable);
-  context.subscriptions.push(enableFilesExclude);
-  context.subscriptions.push(disableFilesExclude);
   context.subscriptions.push(
+    disposable,
+    enableFilesExclude,
+    disableFilesExclude,
     enableAddonFilesExclude,
     addonFramework,
     buildAddonPackage,
     MakeCustomprograms,
     BuildReleaseAddon,
     AddAntiModule,
-    ScratchEditor,
+    StartScratchEditor,
   );
 
   // 插件停用时关闭服务器
   context.subscriptions.push({
-    dispose: () => server?.close(),
+    dispose: () => {
+      if (server) {
+        server.close();
+      }
+      if (timeoutInterval != null) {
+        clearInterval(timeoutInterval);
+      }
+      timeoutInterval = null;
+    },
   });
 }
 

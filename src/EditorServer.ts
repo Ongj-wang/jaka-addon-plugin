@@ -2,6 +2,8 @@ import * as fs from "fs";
 import * as http from "http";
 import * as path from "path";
 import * as url from "url";
+
+let lastRequestTime = Date.now();
 function createServer(webDir: string, workspaceFolder: string, port: number) {
   return http.createServer((req, res) => {
     const reqUrl = url.parse(req.url!, true);
@@ -46,6 +48,7 @@ function createServer(webDir: string, workspaceFolder: string, port: number) {
       // 静态文件服务
       serveStaticFile(webDir, pathname, res);
     }
+    lastRequestTime = Date.now();
   });
 }
 
@@ -84,4 +87,4 @@ function serveStaticFile(
   });
 }
 // 导出类和函数以便在其他文件中使用
-export { createServer };
+export { createServer, lastRequestTime };
