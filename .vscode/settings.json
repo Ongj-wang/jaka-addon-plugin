@@ -45,5 +45,17 @@
         ".python-version": true,
         ".venv": true,
         "uv.lock": true
-    }
+    },
+    "cSpell.words": [
+        "addonpro",
+        "charliermarsh",
+        "customprograms",
+        "jakauser",
+        "pathlib",
+        "Pyaddon",
+        "pycache",
+        "serviceenabled",
+        "shutil",
+        "venv"
+    ]
 }

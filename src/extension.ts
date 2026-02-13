@@ -4,7 +4,7 @@ import * as https from "https";
 import * as path from "path";
 import * as vscode from "vscode";
 import { buildAddon, release_build } from "./buildMethods";
-import { drawCommandBlock } from "./CommendGenerte";
+import { drawCommandBlock } from "./CommandGenerate";
 import { createServer } from "./EditorServer";
 
 let server: http.Server;
@@ -89,8 +89,8 @@ export function activate(context: vscode.ExtensionContext) {
     },
   );
 
-  const BuildRelaseAddon = vscode.commands.registerCommand(
-    "extension.BuildRelaseAddon",
+  const BuildReleaseAddon = vscode.commands.registerCommand(
+    "extension.BuildReleaseAddon",
     async () => {
       await release_build();
     },
@@ -168,13 +168,13 @@ export function activate(context: vscode.ExtensionContext) {
       const MouldDestPath = path.join(RequirementPath, assets.name);
       // 获取插件资源路径中的压缩包
       //   if (module_name.url === undefined) {
-      //     const MouldSorcePath = vscode.Uri.joinPath(
+      //     const MouldSourcePath = vscode.Uri.joinPath(
       //       context.extensionUri,
       //       "resources",
       //       module_name.source
       //     );
       //     // 复制插件资源
-      //     fs.copyFileSync(MouldSorcePath.fsPath, MouldDestPath); // 复制文件
+      //     fs.copyFileSync(MouldSourcePath.fsPath, MouldDestPath); // 复制文件
       //   } else {
       await downloadFileFromUrl(assets.browser_download_url, MouldDestPath);
       //   }
@@ -227,7 +227,7 @@ export function activate(context: vscode.ExtensionContext) {
     addonFramework,
     buildAddonPackage,
     MakeCustomprograms,
-    BuildRelaseAddon,
+    BuildReleaseAddon,
     AddAntiModule,
     ScratchEditor,
   );
@@ -564,7 +564,7 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
     // 写日志管理器方法
   }
   // addon 打包配置
-  const package_setting = await refrashPackageLog(
+  const package_setting = await refreshPackageLog(
     rootPath,
     projectName,
     controllerVersion.label,
@@ -675,9 +675,9 @@ async function writeIniFile(
 
 // 读 addon 配置的方法
 async function readAddonConfig(workspacePath: string): Promise<any> {
-  const packagPath = path.join(workspacePath, "package_log_pro.json");
-  const packagsetting = JSON.parse(fs.readFileSync(packagPath, "utf-8"));
-  const ConfigPath = path.join(workspacePath, packagsetting.addon_config);
+  const packagePath = path.join(workspacePath, "package_log_pro.json");
+  const packageSetting = JSON.parse(fs.readFileSync(packagePath, "utf-8"));
+  const ConfigPath = path.join(workspacePath, packageSetting.addon_config);
   return await readIniFile(ConfigPath);
 }
 
@@ -686,9 +686,9 @@ async function writeAddonConfig(
   workspacePath: string,
   data: any,
 ): Promise<boolean> {
-  const packagPath = path.join(workspacePath, "package_log_pro.json");
-  const packagsetting = JSON.parse(fs.readFileSync(packagPath, "utf-8"));
-  const ConfigPath = path.join(workspacePath, packagsetting.addon_config);
+  const packagePath = path.join(workspacePath, "package_log_pro.json");
+  const packageSetting = JSON.parse(fs.readFileSync(packagePath, "utf-8"));
+  const ConfigPath = path.join(workspacePath, packageSetting.addon_config);
   return await writeIniFile(ConfigPath, data);
 }
 
@@ -841,7 +841,7 @@ function findModuleConfig(
 /**
  *
  */
-async function refrashPackageLog(
+async function refreshPackageLog(
   workspace: string,
   projectName: string,
   controllerVersion: string,
@@ -881,7 +881,7 @@ async function refrashPackageLog(
   const configs = await readIniFile(
     path.join(workspace, `${projectName}_config.ini`),
   );
-  const packagPath = path.join(workspace, "package_log_pro.json");
+  const packagePath = path.join(workspace, "package_log_pro.json");
   let package_setting: packageType = {
     version: 2.0,
     name: projectName,
@@ -898,9 +898,9 @@ async function refrashPackageLog(
     remote_dir: "/home/jakauser/",
     debug_robot: ["", "", controllerVersion == "v1.7.2" ? "1.7.2" : "3.2"],
   };
-  if (fs.existsSync(packagPath)) {
+  if (fs.existsSync(packagePath)) {
     package_setting = JSON.parse(
-      fs.readFileSync(packagPath, "utf-8"),
+      fs.readFileSync(packagePath, "utf-8"),
     ) as packageType;
   }
   if (configs.Requirement != undefined) {
@@ -983,6 +983,7 @@ async function extractCustomModules(
       "typing",
       "collections",
       "datetime",
+      "shutil",
     ];
     if (stdLibModules.includes(moduleName)) return;
 
