@@ -1,0 +1,8 @@
+.vscode/
+.git/
+src/
+
+.gitignore
+
+**.vsix
+**.bat

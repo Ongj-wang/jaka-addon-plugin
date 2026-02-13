@@ -3,7 +3,6 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-import { Builder } from "xml2js";
 
 interface CommandJson {
   initJson: {
@@ -326,7 +325,6 @@ class AddonCustomBlock {
     }
 
     // 将 XML 对象序列化为字符串
-    const builder = new Builder();
     this.Command_json.xml = this.XML_root + "</block>";
   }
 
