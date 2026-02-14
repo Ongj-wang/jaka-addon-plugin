@@ -193,6 +193,27 @@ export default defineComponent({
             </pre>
           </div>
         ),
+        onOk: async() => {
+          // 向本地服务器下发post请求
+          try {
+            const response = await fetch("http://localhost:8080/blocks",{
+              method:"POST",
+              headers:{
+                "Content-Type":"application/json",
+              },
+              body : blockStr,
+            });
+            if (!response.ok){
+              throw new Error(`HTTP error! ststus: ${response.status}`);
+            }
+            const result = await response.json();
+            console.log("保存成功：", result);
+            Modal.success({title:"保存成功", content:"数据已成功发送到服务器"});
+          }catch (error){
+            console.log("保存失败:",error);
+            Modal.error({title:"保存失败",content:"请检查网络或服务器状态"})
+          }
+        }
       });
     };
 
@@ -241,6 +262,29 @@ export default defineComponent({
     );
 
     onMounted(() => {
+      // 向本地服务器发送get请求获取指令块参数
+      fetch("http://localhost:8080/blocks")
+      .then(async (response) => {
+        if (!response.ok){
+          throw new Error(`HTTP eror! status: ${response.status}`);
+        }
+        // return response.json;
+        const data:Block = await response.json();
+        console.log("获取到的指令块参数：",data);
+        block.id = data.id;
+        block.name = data.name;
+        block.kind = data.kind;
+        block.output = data.output;
+        block.color = data.color;
+        block.lang = data.lang;
+        block.fields = data.fields;
+        block.openUrl = data.openUrl;
+        block.selectedType = data.selectedType;
+      })
+      .catch(error => {
+        console.error("获取指令块参数失败：", error);
+      });
+
       service.init(containerRef.value!, {
         readOnly: true,
         grid: { spacing: 20, length: 3, colour: "#e0e0e0", snap: true },
