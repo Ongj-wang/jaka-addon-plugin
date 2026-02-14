@@ -6,4 +6,7 @@ import WindiCSS from 'vite-plugin-windicss'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue(), vueJsx(), WindiCSS()],
+  build:{
+    outDir:"../web"
+  }
 })
