@@ -46,7 +46,8 @@ const generateMessage = (block: Block) => {
   let index = 1;
   const parts: string[] = [block.name];
 
-  block.fields.filter((f) => !f.hidden).forEach((field) => {
+  // block.fields.filter((f) => !f.hidden).forEach((field) => {
+    block.fields.filter((f) => !f.hidden).forEach(() => {
     // const label =
     //   typeof field.label === "object"
     //     ? getLangValue(field.label, block.lang)
