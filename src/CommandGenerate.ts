@@ -196,7 +196,7 @@ class AddonCustomBlock {
       name: name,
       text: value || "",
       check: "Number",
-      disabled: false,
+      disabled: disable,
     };
 
     if (!this.Command_json.initJson[`args${this.block_index}`]) {
@@ -221,7 +221,7 @@ class AddonCustomBlock {
       name: name,
       text: value,
       check: "String",
-      disabled: false,
+      disabled: disable,
     };
 
     if (!this.Command_json.initJson[`args${this.block_index}`]) {
