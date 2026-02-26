@@ -19,6 +19,55 @@ interface Context {
   [lang: string]: string | string[];
 }
 
+class NumberToStringConverter {
+  private static readonly CHARSET =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  private static readonly MAPPING: Map<number, string> = new Map();
+  private static readonly REVERSE_MAPPING: Map<string, number> = new Map();
+
+  // 初始化映射表
+  static initializeMapping(): void {
+    const usedStrings = new Set<string>();
+    let index = 0;
+
+    while (index < 100) {
+      const str = this.generateRandomString(4);
+      if (!usedStrings.has(str)) {
+        usedStrings.add(str);
+        this.MAPPING.set(index, str);
+        this.REVERSE_MAPPING.set(str, index);
+        index++;
+      }
+    }
+  }
+
+  // 生成指定长度的随机字符串
+  private static generateRandomString(length: number): string {
+    let result = "";
+    for (let i = 0; i < length; i++) {
+      const randomIndex = Math.floor(Math.random() * this.CHARSET.length);
+      result += this.CHARSET[randomIndex];
+    }
+    return result;
+  }
+
+  // 整数转字符串
+  static convertNumberToString(num: number): string | undefined {
+    if (num < 0 || num >= 100) {
+      throw new Error("输入必须是 0 到 99 之间的整数");
+    }
+    return this.MAPPING.get(num);
+  }
+
+  // 字符串转整数
+  static convertStringToNumber(str: string): number | undefined {
+    if (str.length !== 4) {
+      throw new Error("输入字符串必须是长度为 4 的字符串");
+    }
+    return this.REVERSE_MAPPING.get(str);
+  }
+}
+
 class AddonCustomBlock {
   AddonName: string = "";
   CommandName: string = "";
@@ -36,8 +85,9 @@ class AddonCustomBlock {
     xml: "",
     message: {},
   };
-
-  constructor() {}
+  constructor() {
+    NumberToStringConverter.initializeMapping();
+  }
 
   create(
     AddonName: string,
@@ -138,7 +188,7 @@ class AddonCustomBlock {
     if (Array.isArray(zhOptions)) {
       zhOptions.forEach((opt, index) => {
         optionList.push([
-          `${name}@${this.AddonName}@${this.CommandName}${index}`,
+          `${name}@${this.AddonName}@${this.CommandName}${NumberToStringConverter.convertNumberToString(index)}`,
           `${index}`,
         ]);
       });
@@ -170,7 +220,7 @@ class AddonCustomBlock {
         text.forEach((t, index) => {
           this.setArgText(
             lang,
-            `${name}@${this.AddonName}@${this.CommandName}${index}`,
+            `${name}@${this.AddonName}@${this.CommandName}${NumberToStringConverter.convertNumberToString(index)}`,
             t,
           );
         });
