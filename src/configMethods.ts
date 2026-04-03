@@ -42,11 +42,11 @@ async function writeIniFile(
   try {
     let iniString = "";
     for (const sectionName in data) {
-      iniString += `[${sectionName}]\n`;
+      iniString += `[${sectionName}]\r\n`;
       for (const optionName in data[sectionName]) {
-        iniString += `${optionName} = ${data[sectionName][optionName]}\n`;
+        iniString += `${optionName} = ${data[sectionName][optionName]}\r\n`;
       }
-      iniString += "\n";
+      iniString += "\r\n";
     }
     fs.writeFileSync(filePath, iniString, "utf8");
     return true;
