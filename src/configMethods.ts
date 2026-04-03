@@ -9,7 +9,11 @@ async function readIniFile(filePath: string): Promise<any> {
       return null;
     }
 
-    const contentLines = fs.readFileSync(filePath, "utf8").split("\n");
+    const contentLines = fs
+      .readFileSync(filePath, "utf8")
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .split("\n");
     const parseIni: { [section: string]: { [option: string]: string } } = {};
     let nowSection = "";
     for (const line of contentLines) {
@@ -42,11 +46,11 @@ async function writeIniFile(
   try {
     let iniString = "";
     for (const sectionName in data) {
-      iniString += `[${sectionName}]\r\n`;
+      iniString += `[${sectionName}]\n`;
       for (const optionName in data[sectionName]) {
-        iniString += `${optionName} = ${data[sectionName][optionName]}\r\n`;
+        iniString += `${optionName} = ${data[sectionName][optionName]}\n`;
       }
-      iniString += "\r\n";
+      iniString += "\n";
     }
     fs.writeFileSync(filePath, iniString, "utf8");
     return true;
