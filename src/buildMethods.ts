@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
+import { readIniFile, writeIniFile } from "./configMethods";
 
 // 打包addon指令辅助函数
 async function buildAddon(
@@ -21,11 +22,13 @@ async function buildAddon(
   const package_setting = JSON.parse(
     fs.readFileSync(path.join(rootPath, "package_log_pro.json"), "utf-8"),
   );
+
   // 添加requirement
   if (requirement.dir) {
     package_setting.no_transform.push({ source: requirement.dir });
     package_setting.no_transform.push({ source: requirement.list });
   }
+  package_setting.no_transform.push({ source: package_setting.addon_config });
 
   // 创建打包输出目录
   const OutputDir = path.join(rootPath, package_setting.output);
@@ -38,10 +41,15 @@ async function buildAddon(
     fs.rmSync(PackageDir, { recursive: true });
   }
   fs.mkdirSync(PackageDir);
-
   // 复制package_setting["no_transform"]中的文件到PackageDir路径下面
   copyItem(package_setting["no_transform"], rootPath, PackageDir);
   copyItem(package_setting["transform"], rootPath, PackageDir);
+
+  await check_addon_name(
+    package_setting["name"],
+    package_setting["addon_config"],
+    PackageDir,
+  );
 
   // 创建py转二进制文件列表
   let tansform_list: string[] = [];
@@ -57,10 +65,10 @@ async function buildAddon(
     path.join(PackageDir, "transform_files.txt"),
     tansform_list.join(","),
   );
-  fs.writeFileSync(
-    path.join(rootPath, "transform_files.txt"),
-    tansform_list.join(","),
-  );
+  // fs.writeFileSync(
+  //   path.join(rootPath, "transform_files.txt"),
+  //   tansform_list.join(","),
+  // );
   fs.writeFileSync(
     path.join(PackageDir, "setup.py"),
     `from distutils.core import setup
@@ -72,6 +80,7 @@ for file in files:
     if ".py" in file:
         setup(ext_modules = cythonize(file))`,
   );
+
   if (package_setting.clear_code) {
     removeCommentsAndReplacePrint(OutputDir);
   }
@@ -755,6 +764,33 @@ async function downloadFileFromRobotViaSFTP(
     vscode.window.showErrorMessage(`下载失败: ${error}`);
   }
   vscode.window.showInformationMessage(`文件下载成功!`);
+}
+
+async function check_addon_name(
+  name: string,
+  config_file: string,
+  outputDir: string,
+) {
+  const configName = `${name}_config.ini`;
+  if (configName == config_file) {
+    return configName;
+  }
+  const nowConfigPath = path.join(outputDir, config_file);
+  const _config = await readIniFile(nowConfigPath);
+  _config["AddOnInfo"]["name"] = name;
+  if (Object.keys(_config.AddOnInfo).includes("url")) {
+    _config.AddOnInfo.url = _config.AddOnInfo.url.replace(
+      /localhost\/\w+\//,
+      `localhost/${name}/`,
+    );
+  }
+
+  const tartConfigPath = path.join(outputDir, configName);
+  await writeIniFile(tartConfigPath, _config);
+
+  // 删除原文件
+  fs.rmSync(nowConfigPath);
+  return configName;
 }
 
 export { buildAddon, release_build };
