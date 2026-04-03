@@ -86,6 +86,13 @@ for file in files:
   }
 
   await createTarGz(rm_output);
+  // 如果rootPath目录下面存在"OldToNew_CustomPrograms.json", 则删除
+  if (fs.existsSync(path.join(rootPath, "OldToNew_CustomPrograms.json"))) {
+    fs.unlinkSync(path.join(rootPath, "OldToNew_CustomPrograms.json"));
+  }
+  if (fs.existsSync(path.join(rootPath, "transform_files.txt"))) {
+    fs.unlinkSync(path.join(rootPath, "transform_files.txt"));
+  }
 }
 // release打包
 async function release_build() {
