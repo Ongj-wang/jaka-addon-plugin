@@ -154,6 +154,7 @@ async function createTarGz(rm_output: boolean) {
         gzip: true,
         file: tarGzFilePath,
         cwd: OutputDir,
+        noPax: true, // 禁用 PAX 扩展头，避免生成 SCHILY.dev 等 GNU tar 特有扩展头
       },
       [projectName],
     );
