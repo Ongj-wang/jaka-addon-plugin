@@ -264,7 +264,7 @@ class AddonCustomBlock {
   ): number {
     this.atter_number += 1;
     const showEnable = disable ? "true" : "false";
-    this.XML_root += `<value name="${name}" disabled="${showEnable}"><shadow type="obj_text" disabled="${showEnable}"><field name="TEXT">#${value || ""}</field></shadow></value>`;
+    this.XML_root += `<value name="${name}" disabled="${showEnable}"><shadow type="obj_text" disabled="${showEnable}"><field name="TEXT">${value || ""}</field></shadow></value>`;
 
     const arg = {
       type: "input_value",
@@ -579,13 +579,16 @@ function readDescription(
 
   // 提取其他指令参数
   const parameters: { [key: string]: string } = {};
-  const paramMatches = description.matchAll(/\$\s*(\w+)\s*=\s*([^"\r\n]*)/g);
+  const paramMatches = description.matchAll(
+    /\$\s*(\w+)\s*=\s*(.*)?\s*(?:\r\n|\n)/g,
+  );
 
   for (const match of paramMatches) {
     parameters[match[1].toLowerCase()] = match[2];
   }
   const openUrl = parameters.openurl ?? "";
   const colour = parameters.colour ?? parameters.color ?? "#FFBF00";
+  console.log(`openurl: ${openUrl}`);
   return [commandType, openUrl, colour, variable];
 }
 
