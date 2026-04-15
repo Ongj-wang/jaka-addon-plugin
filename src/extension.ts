@@ -889,6 +889,35 @@ async function refreshPackageLog(
       addPackageItem("transform", { source: module });
     });
   }
+  if (configs.AddOnInfo.url != undefined && configs.AddOnInfo.type > 1) {
+    const match_result = configs.AddOnInfo.url.match(
+      /http:\/\/localhost\/(\w+)\/(.+)/,
+    );
+
+    if (match_result) {
+      let files = match_result[2].split("/");
+      // 根据files组合文件路径
+      let UIPath;
+      while (files.length > 0) {
+        UIPath = path.join(workspace, files.join("/"));
+        if (fs.existsSync(UIPath)) {
+          addPackageItem("no_transform", { source: `./${files.join("/")}` });
+          break;
+        } else {
+          files.pop(files.length - 1);
+        }
+      }
+      if (files.length == 0) {
+        vscode.window.showErrorMessage(`未找到前端页面文件 ${match_result[2]}`);
+      }
+
+      // if (fs.existsSync(path.join(workspace, match_result[2]))) {
+      //   addPackageItem("no_transform", { source: `./${match_result[2]}` });
+      // } else {
+      //   vscode.window.showErrorMessage(`未找到 ${match_result[2]} 文件`);
+      // }
+    }
+  }
 
   return package_setting;
 }
