@@ -8,11 +8,19 @@ function createServer(webDir: string, workspaceFolder: string, port: number) {
   return http.createServer((req, res) => {
     const reqUrl = url.parse(req.url!, true);
     const pathname = reqUrl.pathname!;
+    const origin = req.headers.origin ?? "*";
 
     // CORS（允许网页跨域请求）
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST");
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
 
     if (pathname === "/blocks" && req.method === "GET") {
       // 读取 CustomCommand.json

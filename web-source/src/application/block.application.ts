@@ -26,13 +26,13 @@ export const createDefaultField = () => ({
   id: createId("field"),
   label: "参数",
   type: "text" as const,
-  defaultValue: { zh: "", en: "", ja: "" },
+  defaultValue: "",
   options: [],
   hidden: false,
 });
 
 // entity
-export const showLang = ["text", "dropdown"];
+export const showLang = ["text"];
 
 const getLangValue = (value: unknown, lang: string) => {
   if (!value) return "";
@@ -42,20 +42,22 @@ const getLangValue = (value: unknown, lang: string) => {
   return String(value);
 };
 
+const getInputCheck = (type: FieldType) => {
+  if (type === "boolean") return "Boolean";
+  if (type === "number") return "Number";
+  if (type === "string" || type === "array") return "String";
+  return null;
+};
+
 const generateMessage = (block: Block) => {
   let index = 1;
-  const parts: string[] = [block.name];
+  const parts: string[] = [];
 
-  // block.fields.filter((f) => !f.hidden).forEach((field) => {
-    block.fields.filter((f) => !f.hidden).forEach(() => {
-    // const label =
-    //   typeof field.label === "object"
-    //     ? getLangValue(field.label, block.lang)
-    //     : field.label || "参数";
+  block.fields.filter((f) => !f.hidden).forEach(() => {
     parts.push(`%${index++}`);
   });
 
-  return parts.join(" ");
+  return parts.join(" ") || " ";
 };
 
 const toBlocklyArg = (field: BlockField, lang: Block["lang"]): BlocklyArg => {
@@ -69,41 +71,46 @@ const toBlocklyArg = (field: BlockField, lang: Block["lang"]): BlocklyArg => {
 
   if (field.type === "number") {
     return {
-      type: "field_number",
+      type: "input_value",
       name: field.id,
-      value: typeof field.defaultValue === "number" ? field.defaultValue : 0,
+      defaultValue: String(field.defaultValue ?? ""),
+      defaultValueType: "number",
+      check: getInputCheck("number"),
     };
   }
 
   if (field.type === "boolean") {
     return {
-      type: "field_checkbox",
+      type: "input_value",
       name: field.id,
-      checked: !!field.defaultValue,
+      defaultValue: String(field.defaultValue ?? ""),
+      defaultValueType: "boolean",
+      check: getInputCheck("boolean"),
     };
   }
 
   if (field.type === "dropdown") {
-    let options: [string, any][] =
-      field.options?.map((opt): [string, any] => [
-        typeof opt.label === "object"
-          ? getLangValue(opt.label, lang)
-          : opt.label,
-        opt.value,
-      ]) ?? [];
-    if (options.length === 0) options = [["请选择", ""]];
+    const rawValue = getLangValue(field.defaultValue, lang);
+    const options = rawValue
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item): [string, string] => [item, item]);
+
     return {
       type: "field_dropdown",
       name: field.id,
-      options,
+      options: options.length > 0 ? options : [["请选择", ""]],
+      value: options[0]?.[1] ?? "",
     };
   }
 
   return {
     type: "input_value",
     name: field.id,
-    defaultValue: field.defaultValue,
-    defaultValueType: field.type, // "number" | "text" | "boolean"
+    defaultValue: String(field.defaultValue ?? ""),
+    defaultValueType: field.type,
+    check: getInputCheck(field.type),
   };
 };
 
@@ -150,6 +157,21 @@ export const setFieldType = (
     if (typeof field.defaultValue !== "object") {
       field.defaultValue = { zh: "", en: "", ja: "" };
     }
+    return;
+  }
+
+  if (type === "boolean") {
+    field.defaultValue = "false";
+    return;
+  }
+
+  if (type === "number") {
+    field.defaultValue = "0";
+    return;
+  }
+
+  if (type === "array") {
+    field.defaultValue = "";
     return;
   }
 

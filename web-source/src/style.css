@@ -51,3 +51,9 @@ table {
 .blocklyEditableLabel {
     fill: #fff !important; /* 換成你想要的顏色值 */
 }
+
+.blocklyDropDownDiv,
+.blocklyWidgetDiv,
+.goog-menu {
+    z-index: 3000 !important;
+}

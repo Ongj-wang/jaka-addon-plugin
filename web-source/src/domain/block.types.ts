@@ -85,8 +85,14 @@ export type BlocklyArg =
   | { type: "field_label"; name: string; text: string }
   | { type: "field_number"; name: string; value: number }
   | { type: "field_checkbox"; name: string; checked: boolean }
-  | { type: "field_dropdown"; name: string; options: [string, any][] }
-  | { type: "input_value"; name: string, defaultValue: any, defaultValueType: any }
+  | { type: "field_dropdown"; name: string; options: [string, any][]; value?: any }
+  | {
+      type: "input_value";
+      name: string;
+      defaultValue: any;
+      defaultValueType: any;
+      check?: string | null;
+    }
   ;
 
 export type BlocklyBlockJson = {
