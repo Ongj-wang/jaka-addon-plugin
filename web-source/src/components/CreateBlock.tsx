@@ -393,6 +393,20 @@ export default defineComponent({
         return;
       }
 
+      const fieldLabels = block.fields
+        .map((field) => (typeof field.label === "object" ? "" : field.label))
+        .filter(Boolean);
+      const duplicateFieldLabel = fieldLabels.find(
+        (label, index) => fieldLabels.indexOf(label) !== index,
+      );
+      if (duplicateFieldLabel) {
+        Modal.error({
+          title: "保存失败",
+          content: `属性名 ${duplicateFieldLabel} 重复，请修改为唯一值`,
+        });
+        return;
+      }
+
       const json = buildBlocklyJson(block);
 
       // 格式化字符串

@@ -9,6 +9,8 @@ import type {
 
 // ****
 const createId = (prefix: string) => `${prefix}_${Date.now()}`;
+const createFieldHash = () =>
+  Math.random().toString(36).slice(2, 8).padEnd(6, "0");
 
 export const createDefaultBlock = (): Block => ({
   id: createId("block"),
@@ -24,7 +26,7 @@ export const createDefaultBlock = (): Block => ({
 
 export const createDefaultField = (index = 1) => ({
   id: createId("field"),
-  label: `arg_${index}`,
+  label: `arg_${index}_${createFieldHash()}`,
   type: "text" as const,
   defaultValue: "",
   options: [],
