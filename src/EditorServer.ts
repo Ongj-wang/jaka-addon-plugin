@@ -57,7 +57,7 @@ function serveStaticFile(
   pathname: string,
   res: http.ServerResponse,
 ) {
-  let filePath = pathname === "/" ? "/index.html" : pathname;
+  let filePath = pathname === "/" ? "/index.html" : decodeURIComponent(pathname);
   filePath = path.join(root, filePath);
 
   // 安全检查
@@ -74,6 +74,16 @@ function serveStaticFile(
       ".js": "application/javascript",
       ".css": "text/css",
       ".json": "application/json",
+      ".svg": "image/svg+xml",
+      ".png": "image/png",
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".gif": "image/gif",
+      ".webp": "image/webp",
+      ".ico": "image/x-icon",
+      ".wav": "audio/wav",
+      ".mp3": "audio/mpeg",
+      ".ogg": "audio/ogg",
     }[ext] || "text/plain";
 
   fs.readFile(filePath, (err, data) => {

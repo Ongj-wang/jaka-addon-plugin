@@ -1,4 +1,4 @@
-import { defineComponent, onMounted, ref, reactive, watch } from "vue";
+import { GlobalOutlined } from "@ant-design/icons-vue";
 import {
   Button,
   Card,
@@ -10,11 +10,9 @@ import {
   Switch,
   Table,
 } from "ant-design-vue";
-import { GlobalOutlined } from "@ant-design/icons-vue";
 import type { SelectValue } from "ant-design-vue/es/select";
+import { defineComponent, onMounted, reactive, ref, watch } from "vue";
 
-import { blocklyService } from "../services/blockly.service";
-import type { BlockTypeOption, Block, FieldType } from "../domain/block.types";
 import {
   addField,
   applyType,
@@ -25,6 +23,8 @@ import {
   setFieldType,
   showLang,
 } from "../application/block.application";
+import type { Block, BlockTypeOption, FieldType } from "../domain/block.types";
+import { blocklyService } from "../services/blockly.service";
 
 
 // options
@@ -265,21 +265,27 @@ export default defineComponent({
       // 向本地服务器发送get请求获取指令块参数
       fetch("http://localhost:8080/blocks")
       .then(async (response) => {
+        console.log("服务器响应：",response);
         if (!response.ok){
           throw new Error(`HTTP eror! status: ${response.status}`);
         }
         // return response.json;
-        const data:Block = await response.json();
+        const data:Block[] = await response.json();
         console.log("获取到的指令块参数：",data);
-        block.id = data.id;
-        block.name = data.name;
-        block.kind = data.kind;
-        block.output = data.output;
-        block.color = data.color;
-        block.lang = data.lang;
-        block.fields = data.fields;
-        block.openUrl = data.openUrl;
-        block.selectedType = data.selectedType;
+        if(data.length === 0){
+          console.warn("服务器返回的指令块列表为空");
+          return;
+        }
+        const dataBlock = data[0] as Block; // 取第一个指令块进行展示
+        block.id = dataBlock.id;
+        block.name = dataBlock.name;
+        block.kind = dataBlock.kind;
+        block.output = dataBlock.output;
+        block.color = dataBlock.color;
+        block.lang = dataBlock.lang;
+        block.fields = dataBlock.fields;
+        block.openUrl = dataBlock.openUrl;
+        block.selectedType = dataBlock.selectedType;
       })
       .catch(error => {
         console.error("获取指令块参数失败：", error);

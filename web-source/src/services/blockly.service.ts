@@ -3,11 +3,14 @@ export type BlocklyService = ReturnType<typeof blocklyService>;
 export const blocklyService = () => {
   let workspace: any = null;
 
+  const defaultMediaPath = new URL("./media/", window.location.href).toString();
+
   // const registeredTypes = new Set<string>();
   /** 初始化 workspace */
   const init = (container: HTMLElement, options?: any) => {
     workspace = window.Blockly.inject(container, {
       // toolbox: { kind: "flyoutToolbox", contents: [] },
+      pathToMedia: defaultMediaPath,
       ...options,
     });
   };

@@ -1,72 +1,14 @@
-<!-- web/index.html -->
 <!doctype html>
-<html>
+<html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <title>Scratch Block Designer</title>
-    <style>
-      body {
-        margin: 0;
-        font-family: sans-serif;
-        display: flex;
-        height: 100vh;
-      }
-      #editor {
-        width: 40%;
-        padding: 20px;
-        border-right: 1px solid #ccc;
-        overflow-y: auto;
-      }
-      #preview {
-        width: 60%;
-      }
-      #blocklyDiv {
-        height: 100%;
-      }
-      button {
-        margin: 5px;
-      }
-    </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>jaka-custom-block</title>
+    <script src="./scratch-blocks.js"></script>
+    <script type="module" crossorigin src="./assets/index-B7jjewcc.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-VhjY5Rqj.css">
   </head>
   <body>
-    <div id="editor">
-      <h3>Block Designer</h3>
-      <label
-        >Type:
-        <select id="blockType">
-          <option value="statement">Stack Block</option>
-          <option value="reporter">Reporter (Value)</option>
-          <option value="boolean">Boolean</option>
-          <option value="hat">Hat (Event)</option>
-        </select> </label
-      ><br /><br />
-
-      <label
-        >Colour: <input type="color" id="blockColor" value="#70a9d4" /></label
-      ><br /><br />
-
-      <button onclick="addField('label')">Add Label</button>
-      <button onclick="addField('input')">Add Text Input</button>
-      <button onclick="addField('number')">Add Number</button>
-      <button onclick="addField('dropdown')">Add Dropdown</button>
-      <button onclick="addField('statement')">Add Statement Slot</button
-      ><br /><br />
-
-      <div id="fieldsList"></div>
-      <br />
-
-      <button onclick="updatePreview()">Update Preview</button>
-      <button onclick="exportJSON()">Export JSON</button>
-    </div>
-
-    <div id="preview">
-      <div id="blocklyDiv"></div>
-    </div>
-
-    <!-- 本地 Blockly 文件 -->
-    <script src="./src/blockly_compressed.js"></script>
-    <script src="./src/blocks_compressed.js"></script>
-    <script src="./src/javascript_compressed.js"></script>
-    <script src="designer.js"></script>
+    <div id="app"></div>
   </body>
 </html>
