@@ -12,7 +12,7 @@ const createId = (prefix: string) => `${prefix}_${Date.now()}`;
 
 export const createDefaultBlock = (): Block => ({
   id: createId("block"),
-  name: "New Block",
+  name: "New_Block",
   kind: "value",
   output: "output_string",
   color: "#6366f1",
@@ -22,9 +22,9 @@ export const createDefaultBlock = (): Block => ({
   selectedType: "string",
 });
 
-export const createDefaultField = () => ({
+export const createDefaultField = (index = 1) => ({
   id: createId("field"),
-  label: "参数",
+  label: `arg_${index}`,
   type: "text" as const,
   defaultValue: "",
   options: [],
@@ -120,7 +120,7 @@ export const applyType = (block: Block, typeOption: BlockTypeOption) => {
 };
 
 export const addField = (block: Block) => {
-  block.fields.push(createDefaultField());
+  block.fields.push(createDefaultField(block.fields.length + 1));
 };
 
 export const deleteField = (block: Block, id: string) => {
@@ -178,10 +178,18 @@ export const setFieldType = (
   field.defaultValue = "";
 };
 
-export const buildBlocklyJson = (block: Block): BlocklyBlockJson => ({
-  type: block.id,
-  message0: generateMessage(block),
-  args0: block.fields.filter((field) => !field.hidden).map((field) => toBlocklyArg(field, block.lang)),
-  colour: block.color,
-  extensions: [block.output!],
-});
+export const buildBlocklyJson = (block: Block): BlocklyBlockJson => {
+  const visibleFields = block.fields.filter((field) => !field.hidden);
+  const args0 =
+    visibleFields.length > 0
+      ? visibleFields.map((field) => toBlocklyArg(field, block.lang))
+      : [{ type: "field_label", name: `${block.id}_placeholder`, text: " " } as BlocklyArg];
+
+  return {
+    type: block.id,
+    message0: visibleFields.length > 0 ? generateMessage(block) : "%1",
+    args0,
+    colour: block.color,
+    extensions: [block.output!],
+  };
+};

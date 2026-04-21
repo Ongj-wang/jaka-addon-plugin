@@ -141,27 +141,6 @@ export const blocklyService = () => {
         this.jsonInit(json);
       },
     };
-
-    // registeredTypes.add(json.type);
-    refreshBlocks(json.type);
-  };
-
-  /** 刷新 workspace 中指定类型 block */
-  const refreshBlocks = (type: string) => {
-    if (!workspace) return;
-
-    workspace
-      .getAllBlocks(false)
-      .filter((b: any) => b.type === type)
-      .forEach((oldBlock: any) => {
-        const pos = oldBlock.getRelativeToSurfaceXY();
-        oldBlock.dispose(false);
-        const newBlock = workspace.newBlock(type);
-        attachDefaultInputs(newBlock, blockDefinitions.get(type));
-        newBlock.initSvg();
-        newBlock.render();
-        newBlock.moveBy(pos.x, pos.y);
-      });
   };
 
   /** 更新 toolbox */

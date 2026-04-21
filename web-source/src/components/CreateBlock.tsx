@@ -55,6 +55,8 @@ const booleanDefaultOptions = [
   { label: "false", value: "false" },
   { label: "true", value: "true" },
 ];
+const identifierPattern = /^[A-Za-z0-9_]+$/;
+const sanitizeIdentifier = (value: string) => value.replace(/[^A-Za-z0-9_]/g, "");
 
 export default defineComponent({
   setup() {
@@ -95,7 +97,14 @@ export default defineComponent({
         title: "属性名",
         key: "label",
         customRender: ({ record }: any) => (
-          <Input v-model:value={record.label} class="w-[150px]" />
+          <Input
+            value={record.label}
+            class="w-[150px]"
+            onInput={(event: Event) => {
+              const target = event.target as HTMLInputElement;
+              record.label = sanitizeIdentifier(target.value);
+            }}
+          />
         ),
       },
       {
@@ -254,10 +263,25 @@ export default defineComponent({
         key: "action",
         customRender: ({ record }: any) => (
           <Space size="small">
-            <Button size="small" type="link" onClick={() => onSelectBlock(record)}>
+            <Button
+              size="small"
+              type="link"
+              onClick={(event: MouseEvent) => {
+                event.stopPropagation();
+                onSelectBlock(record);
+              }}
+            >
               编辑
             </Button>
-            <Button danger size="small" type="link" onClick={() => onDeleteBlock(record)}>
+            <Button
+              danger
+              size="small"
+              type="link"
+              onClick={(event: MouseEvent) => {
+                event.stopPropagation();
+                onDeleteBlock(record);
+              }}
+            >
               删除
             </Button>
           </Space>
@@ -280,20 +304,16 @@ export default defineComponent({
       }),
     );
 
-    const syncWorkspaceBlock = (recreate = false) => {
+    const syncWorkspaceBlock = () => {
       if (!created.value || !containerRef.value) return;
 
       const json = buildBlocklyJson(block);
-      if (recreate) {
-        service.clear();
-      }
       service.registerCustomBlock(json);
-      if (recreate) {
-        service.createBlock(block.id);
-      }
+      service.clear();
+      service.createBlock(block.id);
     };
 
-    const ensureWorkspaceReady = async (recreate = true) => {
+    const ensureWorkspaceReady = async () => {
       await nextTick();
       if (!containerRef.value) return;
 
@@ -311,12 +331,12 @@ export default defineComponent({
         });
       }
 
-      syncWorkspaceBlock(recreate);
+      syncWorkspaceBlock();
     };
 
     const openEditor = async () => {
       editorVisible.value = true;
-      await ensureWorkspaceReady(true);
+      await ensureWorkspaceReady();
     };
 
     const onSelectBlock = async (selectedBlock: Block) => {
@@ -357,6 +377,22 @@ export default defineComponent({
     };
 
     const onSave = () => {
+      if (!identifierPattern.test(block.name)) {
+        Modal.error({ title: "保存失败", content: "名称只能包含英文、数字和下划线" });
+        return;
+      }
+
+      const invalidField = block.fields.find(
+        (field) => typeof field.label !== "object" && !identifierPattern.test(field.label),
+      );
+      if (invalidField) {
+        Modal.error({
+          title: "保存失败",
+          content: `属性名 ${invalidField.label} 只能包含英文、数字和下划线`,
+        });
+        return;
+      }
+
       const json = buildBlocklyJson(block);
 
       // 格式化字符串
@@ -471,7 +507,7 @@ export default defineComponent({
       block,
       () => {
         if (!editorVisible.value) return;
-        syncWorkspaceBlock(false);
+        syncWorkspaceBlock();
       },
       { deep: true },
     );
@@ -519,7 +555,7 @@ export default defineComponent({
           open={editorVisible.value}
           title="编辑块"
           width={"100%"}
-          // footer={null}
+          style="top: 20px"
           forceRender
           destroyOnClose={false}
           maskClosable={false}
@@ -539,7 +575,14 @@ export default defineComponent({
                   <div class="flex items-center flex-wrap gap-[10px]">
                     <Space>
                       <label>名称</label>
-                      <Input class="w-[140px]" v-model:value={block.name} />
+                      <Input
+                        class="w-[140px]"
+                        value={block.name}
+                        onInput={(event: Event) => {
+                          const target = event.target as HTMLInputElement;
+                          block.name = sanitizeIdentifier(target.value);
+                        }}
+                      />
                     </Space>
                     <Space>
                       <label>指令块类型</label>
