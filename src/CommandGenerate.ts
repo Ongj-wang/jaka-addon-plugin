@@ -307,16 +307,16 @@ class AddonCustomBlock {
     name: string,
     context: { [lang: string]: string },
   ): number {
-    // 添加 statement XML 元素
-    if (!this.XML_root.block.statement) {
-      this.XML_root.block.statement = [];
-    }
+    // // 添加 statement XML 元素
+    // if (!this.XML_root.block.statement) {
+    //   this.XML_root.block.statement = [];
+    // }
 
-    this.XML_root.block.statement.push({
-      $: {
-        name: `JAKA_CUSTOM_SUBSTACK${this.block_index}`,
-      },
-    });
+    // this.XML_root.block.statement.push({
+    //   $: {
+    //     name: `JAKA_CUSTOM_SUBSTACK${this.block_index}`,
+    //   },
+    // });
 
     // 添加 placeholder field
     const statement_name = `JAKA_CUSTOM_SUBSTACK${this.block_index}`;
@@ -396,9 +396,11 @@ class AddonCustomBlock {
   buildCommandWithConfig(config: { [key: string]: any }): any {
     for (let argIndex = 0; argIndex < Object.keys(config).length; argIndex++) {
       const commandConfig = config[(argIndex + 1).toString()];
+
       if (!commandConfig) {
-        break;
+        continue;
       }
+      // console.log(`config:${JSON.stringify(commandConfig)}`);
 
       switch (commandConfig.type) {
         case "text":
@@ -451,6 +453,7 @@ function pickVariable(atter: string, context: { [key: string]: any }): any {
     atterMatch = pattern.exec(atter);
     if (atterMatch) {
       atterType = type;
+      // console.log(`type : ${type}`);
       break;
     }
   }
@@ -514,8 +517,11 @@ function readDescription(
     if (type === "line_pattern") {
       const parts = description.split(pattern);
       if (parts.length > 2) {
-        atters = parts.slice(1, -1);
+        // atters = ;
         pType = type;
+        for (const att of parts.slice(1, -1)) {
+          atters.push(att.replace("\n", ""));
+        }
         break;
       }
     } else {
@@ -567,7 +573,6 @@ function readDescription(
       index += 1;
     }
   }
-  console.log(variable);
 
   // 判断指令类型
   let commandType = "Singleline";
@@ -588,7 +593,7 @@ function readDescription(
   }
   const openUrl = parameters.openurl ?? "";
   const colour = parameters.colour ?? parameters.color ?? "#FFBF00";
-  console.log(`openurl: ${openUrl}`);
+  // console.log(`openurl: ${openUrl}`);
   return [commandType, openUrl, colour, variable];
 }
 
@@ -617,7 +622,6 @@ function drawCommandBlock(ConfigPath: string): void {
 
     addonCommand.create(package_setting.name, name, commandType, colour);
     variables.openUrl = openUrl;
-
     commandJson.push(addonCommand.buildCommandWithConfig(variables));
 
     // 可选：调试时写入XML文件
