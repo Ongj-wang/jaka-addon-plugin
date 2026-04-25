@@ -508,6 +508,7 @@ function readDescription(
     line_pattern: /\*\*\*/,
     output_array: /\[{3}[\s\n]*(.*)\]{3}/s,
     output_number: /\({3}[\s\n]*(.*)\){3}/s,
+    output_string: /\"{3}[\s\n]*(.*)\"{3}/s,
   };
 
   let pType = "";

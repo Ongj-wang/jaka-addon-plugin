@@ -1030,7 +1030,10 @@ async function extractCustomModules(
 function changeJson2Addonpro(command: Array<CustomCommandBlock>): string {
   let ProFileText = "";
   const block_kind = {
-    statement: "***",
+    statement: ["***", "***"],
+    number: ["(((", ")))"],
+    string: ['"""', '"""'],
+    array: ["[[[", "]]]"],
   };
   const field_kind = {
     text: ":",
@@ -1041,7 +1044,7 @@ function changeJson2Addonpro(command: Array<CustomCommandBlock>): string {
   };
   for (const block of command) {
     ProFileText += `\`${block.name}\` // id ${block.id}\n`;
-    ProFileText += `${block_kind[block.kind]}\n`;
+    ProFileText += `${block_kind[block.selectedType][0]}\n`;
 
     let field_description = "";
     for (const field of block.fields) {
@@ -1073,8 +1076,8 @@ function changeJson2Addonpro(command: Array<CustomCommandBlock>): string {
         field_description += `- ${field.label} = zh:[${ValueString}],en:[${ValueString}],ja:[${ValueString}];\n`;
       }
     }
-    ProFileText += `\n${block_kind[block.kind]}\n\n${field_description}`;
-    ProFileText += `\$color = ${block.color}`;
+    ProFileText += `\n${block_kind[block.selectedType][1]}\n\n${field_description}`;
+    ProFileText += `\$color = ${block.color}\n`;
     if (block.openUrl) {
       ProFileText += `\$openUrl = ${block.openUrl}\n`;
     }
