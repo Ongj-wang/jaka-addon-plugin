@@ -7,6 +7,7 @@ import { buildAddon, release_build } from "./buildMethods";
 import { drawCommandBlock } from "./CommandGenerate";
 import { readIniFile, writeIniFile } from "./configMethods";
 import { createServer, lastRequestTime } from "./EditorServer";
+import { CustomCommandBlock } from "./types";
 
 let server: http.Server;
 let timeoutInterval: NodeJS.Timeout | null = null; // 存储定时器引用
@@ -63,10 +64,9 @@ export function activate(context: vscode.ExtensionContext) {
     "extension.buildAddon",
     async () => {
       // 检查是否有自定义指令配置文件
-      const addonProFiles = await findAddonProFiles("**/*.addonpro");
-      if (addonProFiles.length > 0) {
-        await make_custom_programs();
-      }
+
+      const make_ret = await make_custom_programs();
+
       // 校验是否由python依赖配置
       const workspaceFolders = vscode.workspace.workspaceFolders;
       if (!workspaceFolders || workspaceFolders.length === 0) {
@@ -79,6 +79,9 @@ export function activate(context: vscode.ExtensionContext) {
         await buildAddon(true, config["Requirement"]);
       } else {
         await buildAddon();
+      }
+      if (make_ret == 1) {
+        fs.unlinkSync(path.join(rootPath, "programs.addonpro"));
       }
     },
   );
@@ -616,14 +619,26 @@ async function initAddonFramework(context: vscode.ExtensionContext) {
 async function make_custom_programs() {
   if (!vscode.workspace.workspaceFolders) {
     vscode.window.showErrorMessage("请先打开一个工作区（Workspace）");
-    return;
+    return -1;
+  }
+  let autoPro = 0;
+  const workspaceFolder = vscode.workspace.workspaceFolders[0].uri.fsPath;
+  const CommandJsonPath = path.join(workspaceFolder, "CustomCommand.json");
+  if (fs.existsSync(CommandJsonPath)) {
+    const CommandBlocks = JSON.parse(fs.readFileSync(CommandJsonPath, "utf-8"));
+    fs.writeFileSync(
+      path.join(workspaceFolder, "programs.addonpro"),
+      changeJson2Addonpro(CommandBlocks),
+    );
+    autoPro = 1;
   }
   const addonProFiles = await findAddonProFiles("**/*.addonpro");
   if (addonProFiles.length === 0) {
     vscode.window.showErrorMessage("未找到 .addonpro 文件");
-    return;
+    return -1;
   }
   drawCommandBlock(addonProFiles[0].fsPath);
+  return autoPro;
 }
 
 // 在工作区中查找 .addonpro 文件
@@ -1011,5 +1026,59 @@ async function extractCustomModules(
   await parseModule(scriptPath);
 
   return result;
+}
+function changeJson2Addonpro(command: Array<CustomCommandBlock>): string {
+  let ProFileText = "";
+  const block_kind = {
+    statement: "***",
+  };
+  const field_kind = {
+    text: ":",
+    number: "(default)",
+    dropdown: "^",
+    array: "[]",
+    string: '"default"',
+  };
+  for (const block of command) {
+    ProFileText += `\`${block.name}\` // id ${block.id}\n`;
+    ProFileText += `${block_kind[block.kind]}\n`;
+
+    let field_description = "";
+    for (const field of block.fields) {
+      const field_flag = field_kind[field.type].includes("default")
+        ? field_kind[field.type].replace(
+            "default",
+            String(field.defaultValue ?? ""),
+          )
+        : field_kind[field.type];
+      ProFileText += `${field_flag}${field.hidden ? "!" : ""}${field.label} `;
+      if (field.type == "text") {
+        // 将 defaultValue 断言为 Record<string, any> 以允许字符串索引访问
+        const defaultValueObj = field.defaultValue as Record<string, any>;
+
+        // 确保 defaultValueObj 是对象且不为 null，防止运行时错误
+        if (defaultValueObj && typeof defaultValueObj === "object") {
+          let desctiption: string[] = []; // 修正变量名拼写错误 (可选)
+          for (const option of Object.keys(defaultValueObj)) {
+            // 使用断言后的对象进行索引访问
+            desctiption.push(`${option}:"${defaultValueObj[option]}"`);
+          }
+          // 更新 field_description，使用 JSON.stringify 时同样使用断言后的对象
+          field_description += `- ${field.label} = ${desctiption.join(",")};\n`;
+        }
+      }
+      if (field.type == "dropdown") {
+        const defaultValueString = field.defaultValue as string;
+        const ValueString = defaultValueString.replace(/\s/g, "").split(",");
+        field_description += `- ${field.label} = zh:[${ValueString}],en:[${ValueString}],ja:[${ValueString}];\n`;
+      }
+    }
+    ProFileText += `\n${block_kind[block.kind]}\n\n${field_description}`;
+    ProFileText += `\$color = ${block.color}`;
+    if (block.openUrl) {
+      ProFileText += `\$openUrl = ${block.openUrl}\n`;
+    }
+  }
+  return ProFileText;
 }
 export function deactivate() {}
