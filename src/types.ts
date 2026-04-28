@@ -29,7 +29,7 @@ interface CustomCommandBlock {
   lang: "zh" | "en" | "ja" | string;
   fields: BlockField[];
   openUrl: string;
-  selectedType: "statement" | "number" | "string" | "array";
+  selectedType: "statement" | "number" | "string" | "array" | "boolean";
 }
 
 // 整个配置文件结构（对应 CustomCommand.json）

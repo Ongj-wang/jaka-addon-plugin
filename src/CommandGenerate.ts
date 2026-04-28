@@ -372,6 +372,9 @@ class AddonCustomBlock {
       )
     ) {
       this.Command_json.initJson.extensions = this.CommandType;
+    } else if (this.CommandType === "output_boolean") {
+      this.Command_json.initJson.extensions = "output_boolean";
+      this.Command_json.initJson.output = "Boolean";
     }
 
     // 将 XML 对象序列化为字符串
@@ -509,6 +512,7 @@ function readDescription(
     output_array: /\[{3}[\s\n]*(.*)\]{3}/s,
     output_number: /\({3}[\s\n]*(.*)\){3}/s,
     output_string: /\"{3}[\s\n]*(.*)\"{3}/s,
+    output_boolean: /\&{3}[\s\n]*(.*)\&{3}/s,
   };
 
   let pType = "";

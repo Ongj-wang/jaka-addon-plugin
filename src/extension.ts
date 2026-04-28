@@ -1034,6 +1034,7 @@ function changeJson2Addonpro(command: Array<CustomCommandBlock>): string {
     number: ["(((", ")))"],
     string: ['"""', '"""'],
     array: ["[[[", "]]]"],
+    boolean: ["&&&", "&&&"],
   };
   const field_kind = {
     text: ":",
