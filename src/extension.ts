@@ -1073,7 +1073,10 @@ function changeJson2Addonpro(command: Array<CustomCommandBlock>): string {
       }
       if (field.type == "dropdown") {
         const defaultValueString = field.defaultValue as string;
-        const ValueString = defaultValueString.replace(/\s/g, "").split(",");
+        const ValueString = defaultValueString
+          .replace(/\s/g, "")
+          .split(",")
+          .map((option) => `"${option}"`);
         field_description += `- ${field.label} = zh:[${ValueString}],en:[${ValueString}],ja:[${ValueString}];\n`;
       }
     }
