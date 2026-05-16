@@ -23,6 +23,10 @@
       {
         "command": "extension.open_scratch_editor",
         "title": "addon-plugin:open scratch editor"
+      },
+      {
+        "command": "extension.download_requirements",
+        "title": "addon-plugin:download requirements"
       }
     ]
   },
@@ -49,6 +53,7 @@
   "license": "MIT",
   "main": "./out/extension.js",
   "name": "jaka-addon-plugin",
+  "publisher": "devinwang",
   "repository": {
     "type": "git",
     "url": "https://gitee.com/wanghonejie/jaka-addon-plugin.git"
@@ -57,5 +62,5 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./"
   },
-  "version": "1.4.3"
+  "version": "1.4.6"
 }

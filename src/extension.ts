@@ -1,3 +1,4 @@
+import { spawn } from "child_process";
 import * as fs from "fs";
 import * as http from "http";
 import * as https from "https";
@@ -240,6 +241,48 @@ export function activate(context: vscode.ExtensionContext) {
       server.listen(port, "127.0.0.1", () => {
         vscode.env.openExternal(vscode.Uri.parse(`http://localhost:${port}`));
       });
+    },
+  );
+  const DownloadRequirements = vscode.commands.registerCommand(
+    "extension.download_requirements",
+    async () => {
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (!workspaceFolders || workspaceFolders.length === 0) {
+        vscode.window.showErrorMessage("请先打开一个工作区（Workspace）");
+        return;
+      }
+      const rootPath = workspaceFolders[0].uri.fsPath;
+
+      // 要求用户输入希望下载的python moudle名字
+      const MoudleNameInput = await vscode.window.showInputBox({
+        placeHolder: `Please enter module name`,
+        // 请输入项目名称(默认使用当前工作区名称)",
+        ignoreFocusOut: true,
+      });
+      if (!MoudleNameInput) {
+        return;
+      }
+      let RequirementPath = "";
+      const config = await readAddonConfig(rootPath);
+      if (Object.keys(config).includes("Requirement")) {
+        RequirementPath = path.join(rootPath, config.Requirement.dir);
+      } else {
+        RequirementPath = path.join(rootPath, "requirement");
+        fs.mkdirSync(RequirementPath);
+        config.Requirement = {
+          dir: "requirement",
+          list: "requirement.list",
+        };
+        await writeAddonConfig(rootPath, config);
+      }
+
+      // 将python moudle下载到requirement文件夹
+      const deps = await getModuleDependencies(MoudleNameInput);
+      console.log(`deps : ${deps}`);
+      for (const dep of deps) {
+        downloadModule(dep, RequirementPath);
+      }
+      downloadModule(MoudleNameInput, RequirementPath);
     },
   );
   context.subscriptions.push(
@@ -1087,5 +1130,330 @@ function changeJson2Addonpro(command: Array<CustomCommandBlock>): string {
     }
   }
   return ProFileText;
+}
+function downloadModule(moduleName: string, modulePath: string): Promise<void> {
+  return new Promise(async (resolve, reject) => {
+    // 查询modulePath中是否已存在模块包
+    if (fs.existsSync(modulePath)) {
+      const moduleFiles = fs.readdirSync(modulePath);
+      if (moduleFiles.some((file) => file.startsWith(moduleName))) {
+        vscode.window.showInformationMessage(`模块 ${moduleName} 已存在`);
+        resolve();
+        return;
+      }
+    }
+    // 自动下载python module离线安装包
+    const python = spawn("pip", [
+      "download",
+      moduleName,
+      "--platform",
+      "manylinux_x86_64",
+      "--python-version",
+      "3.11",
+      "--no-deps",
+      "--only-binary",
+      ":all",
+      "--dest",
+      modulePath,
+      "-i",
+      "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
+    ]);
+
+    let stdoutData = "";
+    let stderrData = "";
+
+    // python.stdout.on("data", (data) => {
+    //   stdoutData += data.toString();
+    //   console.log(`pip stdout: ${data}`);
+    // });
+
+    // python.stderr.on("data", (data) => {
+    //   stderrData += data.toString();
+    //   console.error(`pip stderr: ${data}`);
+    // });
+
+    python.on("close", (code) => {
+      if (code === 0) {
+        vscode.window.showInformationMessage(`模块 ${moduleName} 下载成功`);
+        resolve();
+      } else {
+        const errorMsg = stderrData || `进程退出码: ${code}`;
+        vscode.window.showErrorMessage(
+          `模块 ${moduleName} 下载失败: ${errorMsg}`,
+        );
+        reject(new Error(errorMsg));
+      }
+    });
+
+    python.on("error", (err) => {
+      vscode.window.showErrorMessage(`无法启动 pip 进程: ${err.message}`);
+      reject(err);
+    });
+  });
+}
+/**
+ * 从 PyPI 获取模块的依赖列表
+ * @param moduleName 模块名称
+ * @param version 可选，指定版本，默认为最新
+ */
+const PYTHON_3_11_STD_LIBS = new Set([
+  "abc",
+  "aifc",
+  "argparse",
+  "array",
+  "ast",
+  "asynchat",
+  "asyncio",
+  "asyncore",
+  "atexit",
+  "audioop",
+  "base64",
+  "bdb",
+  "binascii",
+  "binhex",
+  "bisect",
+  "builtins",
+  "bz2",
+  "calendar",
+  "cgi",
+  "cgitb",
+  "chunk",
+  "cmath",
+  "cmd",
+  "code",
+  "codecs",
+  "codeop",
+  "collections",
+  "colorsys",
+  "compileall",
+  "concurrent",
+  "configparser",
+  "contextlib",
+  "contextvars",
+  "copy",
+  "copyreg",
+  "cProfile",
+  "crypt",
+  "csv",
+  "ctypes",
+  "curses",
+  "dataclasses",
+  "datetime",
+  "dbm",
+  "decimal",
+  "difflib",
+  "dis",
+  "distutils",
+  "doctest",
+  "email",
+  "encodings",
+  "enum",
+  "errno",
+  "faulthandler",
+  "fcntl",
+  "filecmp",
+  "fileinput",
+  "fnmatch",
+  "formatter",
+  "fractions",
+  "ftplib",
+  "functools",
+  "gc",
+  "getopt",
+  "getpass",
+  "gettext",
+  "glob",
+  "grp",
+  "gzip",
+  "hashlib",
+  "heapq",
+  "hmac",
+  "html",
+  "http",
+  "idlelib",
+  "imaplib",
+  "imghdr",
+  "imp",
+  "importlib",
+  "inspect",
+  "io",
+  "ipaddress",
+  "itertools",
+  "json",
+  "keyword",
+  "lib2to3",
+  "linecache",
+  "locale",
+  "logging",
+  "lzma",
+  "mailbox",
+  "mailcap",
+  "marshal",
+  "math",
+  "mimetypes",
+  "mmap",
+  "modulefinder",
+  "multiprocessing",
+  "netrc",
+  "nis",
+  "nntplib",
+  "numbers",
+  "operator",
+  "optparse",
+  "os",
+  "ossaudiodev",
+  "parser",
+  "pathlib",
+  "pdb",
+  "pickle",
+  "pickletools",
+  "pipes",
+  "pkgutil",
+  "platform",
+  "plistlib",
+  "poplib",
+  "posix",
+  "posixpath",
+  "pprint",
+  "profile",
+  "pstats",
+  "pty",
+  "pwd",
+  "py_compile",
+  "pyclbr",
+  "pydoc",
+  "queue",
+  "quopri",
+  "random",
+  "re",
+  "readline",
+  "reprlib",
+  "resource",
+  "rlcompleter",
+  "runpy",
+  "sched",
+  "secrets",
+  "select",
+  "selectors",
+  "shelve",
+  "shlex",
+  "shutil",
+  "signal",
+  "site",
+  "smtpd",
+  "smtplib",
+  "sndhdr",
+  "socket",
+  "socketserver",
+  "spwd",
+  "sqlite3",
+  "ssl",
+  "stat",
+  "statistics",
+  "string",
+  "stringprep",
+  "struct",
+  "subprocess",
+  "sunau",
+  "symtable",
+  "sys",
+  "sysconfig",
+  "syslog",
+  "tabnanny",
+  "tarfile",
+  "telnetlib",
+  "tempfile",
+  "termios",
+  "test",
+  "textwrap",
+  "threading",
+  "time",
+  "timeit",
+  "tkinter",
+  "token",
+  "tokenize",
+  "trace",
+  "traceback",
+  "tracemalloc",
+  "tty",
+  "turtle",
+  "turtledemo",
+  "types",
+  "typing",
+  "unicodedata",
+  "unittest",
+  "urllib",
+  "uu",
+  "uuid",
+  "venv",
+  "warnings",
+  "wave",
+  "weakref",
+  "webbrowser",
+  "winreg",
+  "winsound",
+  "wsgiref",
+  "xdrlib",
+  "xml",
+  "xmlrpc",
+  "zipapp",
+  "zipfile",
+  "zipimport",
+  "zlib",
+  "_thread",
+
+  "importlib-metadata",
+]);
+
+async function getModuleDependencies(
+  moduleName: string,
+  version?: string,
+): Promise<string[]> {
+  const url = version
+    ? `https://pypi.org/pypi/${moduleName}/${version}/json`
+    : `https://pypi.org/pypi/${moduleName}/json`;
+
+  try {
+    const response = await httpsGet(url); // 复用你已有的 httpsGet 函数
+    const data = JSON.parse(response);
+
+    // requires_dist 包含了所有依赖，格式如: "Flask (>=2.0)", "Werkzeug (>=2.0)"
+    const requiresDist = data.info.requires_dist;
+
+    if (!requiresDist) {
+      return [];
+    }
+
+    // 过滤掉当前平台/环境不需要的依赖 (optional dependencies)
+    // 注意：简单的过滤可能不完美，但对于离线下载通常足够。
+    // 更严谨的做法是解析 environment markers，但这里我们只提取包名
+    const dependencies: string[] = [];
+
+    for (const req of requiresDist) {
+      // 1. 检查是否有可选依赖
+      if (req.includes("extra ==")) {
+        console.log(`跳过可选依赖: ${req}`);
+        continue;
+      }
+
+      const match = req.match(/^([a-zA-Z0-9_-]+)/);
+
+      let rawName = match[1];
+      // 标准化包名：转小写，将连字符替换为下划线，以便与标准库列表匹配
+      // const normalizedName = rawName.toLowerCase().replace(/-/g, "_");
+
+      // 2. 检查是否为标准库
+      if (PYTHON_3_11_STD_LIBS.has(rawName)) {
+        console.log(`跳过标准库依赖: ${rawName}`);
+        continue;
+      }
+
+      dependencies.push(rawName);
+    }
+    return dependencies;
+  } catch (error) {
+    console.error(`获取 ${moduleName} 依赖失败:`, error);
+    return [];
+  }
 }
 export function deactivate() {}
