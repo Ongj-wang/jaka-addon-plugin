@@ -17,10 +17,6 @@
         "title": "addon-plugin:make custom programs"
       },
       {
-        "command": "extension.AddAntiModule",
-        "title": "addon-plugin:add anti module"
-      },
-      {
         "command": "extension.open_scratch_editor",
         "title": "addon-plugin:open scratch editor"
       },
@@ -62,5 +58,5 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./"
   },
-  "version": "1.4.6"
+  "version": "1.5.1"
 }

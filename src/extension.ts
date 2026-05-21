@@ -102,105 +102,6 @@ export function activate(context: vscode.ExtensionContext) {
     },
   );
 
-  const AddAntiModule = vscode.commands.registerCommand(
-    "extension.AddAntiModule",
-    async () => {
-      // 选择模组
-      const module_name = await vscode.window.showQuickPick(
-        [
-          {
-            label: "FlaskResponse",
-            description: "Flask服务响应辅助方法",
-            source:
-              "https://gitee.com/api/v5/repos/wanghonejie/FlaskResponse/releases/latest",
-          },
-          {
-            label: "MyFactory",
-            description: "一种用于多线程调用实例化对象的方法",
-            source:
-              "https://gitee.com/api/v5/repos/wanghonejie/MyFactorys/releases/latest",
-          },
-          {
-            label: "ThreadDataBase",
-            description: "多线程数据读写方法",
-            source:
-              "https://gitee.com/api/v5/repos/wanghonejie/thread-data-base/releases/latest",
-          },
-        ],
-        {
-          placeHolder: "请选择希望添加的模组",
-          ignoreFocusOut: true,
-        },
-      );
-      if (!module_name) return;
-
-      // 获取当前工作区
-      const workspaceFolders = vscode.workspace.workspaceFolders;
-      if (!workspaceFolders || workspaceFolders.length === 0) {
-        vscode.window.showErrorMessage("请先打开一个工作区（Workspace）");
-        return;
-      }
-      const workspacePath = path.join(workspaceFolders[0].uri.fsPath);
-
-      // 读取配置文件, 获取addon依赖管理配置
-      const Configs = await readAddonConfig(workspacePath);
-      let RequirementPath = path.join(workspacePath, "requirement");
-      let RequirementListPath = path.join(workspacePath, "requirement.list");
-      if (Object.keys(Configs).includes("Requirement")) {
-        RequirementPath = path.join(workspacePath, Configs.Requirement.dir);
-        RequirementListPath = path.join(
-          workspacePath,
-          Configs.Requirement.list,
-        );
-      } else {
-        Configs["Requirement"] = {
-          dir: "requirement",
-          list: "requirement.list",
-        };
-        fs.mkdirSync(RequirementPath);
-        fs.writeFileSync(RequirementListPath, "");
-      }
-      // 更新配置文件
-      writeAddonConfig(workspacePath, Configs);
-
-      // get请求获取模块仓库的模组信息
-      const module_source = JSON.parse(await httpsGet(module_name.source));
-
-      const assets = findModuleConfig(module_source.assets, "whl");
-      // 解析模组名和版本信息
-      const module_info = assets.name.split("-");
-      const moduleInfo = `${module_info[0]}==${module_info[1]}`;
-
-      const MouldDestPath = path.join(RequirementPath, assets.name);
-      // 获取插件资源路径中的压缩包
-      //   if (module_name.url === undefined) {
-      //     const MouldSourcePath = vscode.Uri.joinPath(
-      //       context.extensionUri,
-      //       "resources",
-      //       module_name.source
-      //     );
-      //     // 复制插件资源
-      //     fs.copyFileSync(MouldSourcePath.fsPath, MouldDestPath); // 复制文件
-      //   } else {
-      await downloadFileFromUrl(assets.browser_download_url, MouldDestPath);
-      //   }
-
-      // 更新requirement.list
-      const listContext = fs
-        .readFileSync(RequirementListPath, "utf-8")
-        .trim()
-        .split("\n");
-      for (const line of listContext) {
-        if (line.match(/^${module_info[0]}==.*&/)) {
-          listContext.splice(listContext.indexOf(line), 1); // 删除旧行
-          break;
-        }
-      }
-      listContext.push(moduleInfo);
-      const trimmedContent = listContext.join("\n").trim();
-      fs.writeFileSync(RequirementListPath, trimmedContent);
-    },
-  );
   const StartScratchEditor = vscode.commands.registerCommand(
     "extension.open_scratch_editor",
     async () => {
@@ -268,28 +169,50 @@ export function activate(context: vscode.ExtensionContext) {
         RequirementPath = path.join(rootPath, config.Requirement.dir);
       } else {
         RequirementPath = path.join(rootPath, "requirement");
-        fs.mkdirSync(RequirementPath);
         config.Requirement = {
           dir: "requirement",
           list: "requirement.list",
         };
         await writeAddonConfig(rootPath, config);
       }
-
+      if (!fs.existsSync(RequirementPath)) {
+        fs.mkdirSync(RequirementPath);
+      }
+      let moduleList = "";
       // 将python moudle下载到requirement文件夹
       vscode.window.showInformationMessage("获取依赖项...");
-      const deps = await getModuleDependencies(MoudleNameInput);
-      deps.push(MoudleNameInput);
-      console.log(`deps : ${deps}`);
-      let moduleList = "";
-      for (const dep of deps) {
-        const moduleInfo = await downloadModule(dep, RequirementPath);
-        if (moduleInfo) {
-          moduleList += `${moduleInfo}\n`;
+      const antiModule = await getAntiModule(
+        MoudleNameInput.toLowerCase(),
+        RequirementPath,
+      );
+      let targetModule = "";
+      if (antiModule) {
+        if (MoudleNameInput.toLowerCase() == "flaskresponse") {
+          targetModule = "flask";
+        } else {
+          targetModule = "";
         }
+      } else {
+        targetModule = MoudleNameInput;
+      }
+      if (targetModule) {
+        const deps = await getModuleDependencies(targetModule);
+        deps.push(targetModule);
+        console.log(`deps : ${deps}`);
+
+        for (const dep of deps) {
+          const moduleInfo = await downloadModule(dep, RequirementPath);
+          if (moduleInfo) {
+            moduleList += `${moduleInfo}\n`;
+          }
+        }
+      }
+      if (antiModule) {
+        moduleList += `${antiModule}\n`;
       }
       const requirementListPath = path.join(rootPath, config.Requirement.list);
       fs.appendFileSync(requirementListPath, moduleList, "utf-8");
+      vscode.window.showInformationMessage(`依赖${MoudleNameInput}下载完成！`);
     },
   );
   context.subscriptions.push(
@@ -301,7 +224,6 @@ export function activate(context: vscode.ExtensionContext) {
     buildAddonPackage,
     MakeCustomprograms,
     BuildReleaseAddon,
-    AddAntiModule,
     StartScratchEditor,
     DownloadRequirements,
   );
@@ -1194,8 +1116,8 @@ function downloadModule(
           const moduleFiles = fs.readdirSync(modulePath);
           const downloadFile = moduleFiles.find(
             (file) =>
-              file.startsWith(moduleName) &&
-              (file.endsWith(".whl") || file.endsWith(".tar.gz")),
+              file.startsWith(moduleName.toLowerCase()) &&
+              file.endsWith(".whl"),
           );
           console.log("downloadFile", downloadFile);
           if (downloadFile) {
@@ -1496,5 +1418,52 @@ async function getModuleDependencies(
     console.error(`获取 ${moduleName} 依赖失败:`, error);
     return [];
   }
+}
+async function getAntiModule(
+  moduleName: string,
+  requiremethPath: string,
+): Promise<string> {
+  return new Promise(async (resolve, reject) => {
+    const modulesList = {
+      flaskresponse: {
+        source:
+          "https://gitee.com/api/v5/repos/wanghonejie/FlaskResponse/releases/latest",
+      },
+      myfactory: {
+        description: "一种用于多线程调用实例化对象的方法",
+        source:
+          "https://gitee.com/api/v5/repos/wanghonejie/MyFactorys/releases/latest",
+      },
+      threaddatabase: {
+        description: "多线程数据读写方法",
+        source:
+          "https://gitee.com/api/v5/repos/wanghonejie/thread-data-base/releases/latest",
+      },
+    };
+    const isValidModuleName = (
+      name: string,
+    ): name is keyof typeof modulesList => {
+      return name in modulesList;
+    };
+    if (!isValidModuleName(moduleName)) {
+      console.log(`${moduleName}不存在特殊module列表中`);
+      resolve("");
+      return;
+    }
+    const module_name = modulesList[moduleName];
+    // get请求获取模块仓库的模组信息
+    const module_source = JSON.parse(await httpsGet(module_name.source));
+
+    const assets = findModuleConfig(module_source.assets, "whl");
+    // 解析模组名和版本信息
+    const module_info = assets.name.split("-");
+    console.log(module_info);
+    const moduleInfo = `${module_info[0]}==${module_info[1]}`;
+    const MouldDestPath = path.join(requiremethPath, assets.name);
+
+    await downloadFileFromUrl(assets.browser_download_url, MouldDestPath);
+    resolve(moduleInfo);
+    return;
+  });
 }
 export function deactivate() {}
