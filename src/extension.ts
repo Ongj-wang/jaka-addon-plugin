@@ -277,12 +277,19 @@ export function activate(context: vscode.ExtensionContext) {
       }
 
       // 将python moudle下载到requirement文件夹
+      vscode.window.showInformationMessage("获取依赖项...");
       const deps = await getModuleDependencies(MoudleNameInput);
+      deps.push(MoudleNameInput);
       console.log(`deps : ${deps}`);
+      let moduleList = "";
       for (const dep of deps) {
-        downloadModule(dep, RequirementPath);
+        const moduleInfo = await downloadModule(dep, RequirementPath);
+        if (moduleInfo) {
+          moduleList += `${moduleInfo}\n`;
+        }
       }
-      downloadModule(MoudleNameInput, RequirementPath);
+      const requirementListPath = path.join(rootPath, config.Requirement.list);
+      fs.appendFileSync(requirementListPath, moduleList, "utf-8");
     },
   );
   context.subscriptions.push(
@@ -296,6 +303,7 @@ export function activate(context: vscode.ExtensionContext) {
     BuildReleaseAddon,
     AddAntiModule,
     StartScratchEditor,
+    DownloadRequirements,
   );
 
   // 插件停用时关闭服务器
@@ -1131,32 +1139,37 @@ function changeJson2Addonpro(command: Array<CustomCommandBlock>): string {
   }
   return ProFileText;
 }
-function downloadModule(moduleName: string, modulePath: string): Promise<void> {
+function downloadModule(
+  moduleName: string,
+  modulePath: string,
+): Promise<string> {
   return new Promise(async (resolve, reject) => {
     // 查询modulePath中是否已存在模块包
     if (fs.existsSync(modulePath)) {
       const moduleFiles = fs.readdirSync(modulePath);
       if (moduleFiles.some((file) => file.startsWith(moduleName))) {
         vscode.window.showInformationMessage(`模块 ${moduleName} 已存在`);
-        resolve();
+        resolve("");
         return;
       }
     }
+    vscode.window.showInformationMessage(`正在下载模块 ${moduleName}`);
     // 自动下载python module离线安装包
     const python = spawn("pip", [
       "download",
       moduleName,
       "--platform",
-      "manylinux_x86_64",
+      "manylinux_2_17_x86_64",
       "--python-version",
       "3.11",
       "--no-deps",
-      "--only-binary",
-      ":all",
+      "--only-binary=:all",
+      "--prefer-binary",
       "--dest",
       modulePath,
       "-i",
-      "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
+      // "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
+      "https://mirrors.huaweicloud.com/repository/pypi/simple",
     ]);
 
     let stdoutData = "";
@@ -1175,13 +1188,41 @@ function downloadModule(moduleName: string, modulePath: string): Promise<void> {
     python.on("close", (code) => {
       if (code === 0) {
         vscode.window.showInformationMessage(`模块 ${moduleName} 下载成功`);
-        resolve();
+
+        // 返回module名字和版本号
+        if (fs.existsSync(modulePath)) {
+          const moduleFiles = fs.readdirSync(modulePath);
+          const downloadFile = moduleFiles.find(
+            (file) =>
+              file.startsWith(moduleName) &&
+              (file.endsWith(".whl") || file.endsWith(".tar.gz")),
+          );
+          console.log("downloadFile", downloadFile);
+          if (downloadFile) {
+            // 从 wheel 文件名解析版本
+            const versionMatch = downloadFile.match(
+              /^[^-]+-([^-]+)(?:-.*)?\.(?:whl|tar\.gz)$/,
+            );
+            if (versionMatch) {
+              resolve(`${moduleName}==${versionMatch[1]}`);
+              return;
+            } else {
+              console.log("无法从 wheel 文件名中解析版本");
+              reject(new Error("无法从 wheel 文件名中解析版本"));
+              return;
+            }
+          } else {
+            reject(new Error("无法找到下载的模块文件"));
+            return;
+          }
+        }
       } else {
         const errorMsg = stderrData || `进程退出码: ${code}`;
         vscode.window.showErrorMessage(
           `模块 ${moduleName} 下载失败: ${errorMsg}`,
         );
         reject(new Error(errorMsg));
+        return;
       }
     });
 
