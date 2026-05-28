@@ -38,6 +38,11 @@ export function activate(context: vscode.ExtensionContext) {
       }
       const rootPath = workspaceFolders[0].uri.fsPath;
       const config = await readAddonConfig(rootPath);
+      if (!config || typeof config !== "object") {
+        console.error("读取addon配置失败:", config);
+        await buildAddon(); // 默认构建
+        return;
+      }
       if (Object.keys(config).includes("Requirement")) {
         await buildAddon(true, config["Requirement"]);
       } else {
@@ -387,9 +392,22 @@ async function findAddonProFiles(filePattern: string): Promise<vscode.Uri[]> {
 // 读 addon 配置的方法
 async function readAddonConfig(workspacePath: string): Promise<any> {
   const packagePath = path.join(workspacePath, "package_log_pro.json");
-  const packageSetting = JSON.parse(fs.readFileSync(packagePath, "utf-8"));
-  const ConfigPath = path.join(workspacePath, packageSetting.addon_config);
-  return await readIniFile(ConfigPath);
+  if (!fs.existsSync(packagePath)) {
+    console.error(`package_log_pro.json 文件不存在: ${packagePath}`);
+    return {};
+  }
+  try {
+    const packageSetting = JSON.parse(fs.readFileSync(packagePath, "utf-8"));
+    const ConfigPath = path.join(workspacePath, packageSetting.addon_config);
+    if (!fs.existsSync(ConfigPath)) {
+      console.error(`addon配置文件不存在: ${ConfigPath}`);
+      return {};
+    }
+    return await readIniFile(ConfigPath);
+  } catch (error) {
+    console.error(`读取addon配置失败: ${error}`);
+    return {};
+  }
 }
 
 // 写 addon 配置的方法
@@ -765,6 +783,7 @@ function changeJson2Addonpro(command: Array<CustomCommandBlock>): string {
     dropdown: "^",
     array: "[]",
     string: '"default"',
+    boolean: "&&&default&&&",
   };
   for (const block of command) {
     ProFileText += `\`${block.name}\` // id ${block.id}\n`;
