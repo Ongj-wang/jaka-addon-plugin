@@ -845,8 +845,7 @@ function downloadModule(
       }
     }
     vscode.window.showInformationMessage(`正在下载模块 ${moduleName}`);
-    // 自动下载python module离线安装包
-    const python = spawn("pip", [
+    const pipDownloadArgs = [
       "download",
       moduleName,
       "--platform",
@@ -861,66 +860,79 @@ function downloadModule(
       "-i",
       // "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
       "https://mirrors.huaweicloud.com/repository/pypi/simple",
-    ]);
+    ];
+    const pipCommands =
+      process.platform === "win32"
+        ? [
+            { command: "py", args: ["-3", "-m", "pip", ...pipDownloadArgs] },
+            { command: "python", args: ["-m", "pip", ...pipDownloadArgs] },
+            { command: "pip", args: pipDownloadArgs },
+          ]
+        : [
+            { command: "python3", args: ["-m", "pip", ...pipDownloadArgs] },
+            { command: "python", args: ["-m", "pip", ...pipDownloadArgs] },
+            { command: "pip3", args: pipDownloadArgs },
+            { command: "pip", args: pipDownloadArgs },
+          ];
 
-    let stdoutData = "";
-    let stderrData = "";
+    const finishDownload = () => {
+      vscode.window.showInformationMessage(`模块 ${moduleName} 下载成功`);
 
-    // python.stdout.on("data", (data) => {
-    //   stdoutData += data.toString();
-    //   console.log(`pip stdout: ${data}`);
-    // });
-
-    // python.stderr.on("data", (data) => {
-    //   stderrData += data.toString();
-    //   console.error(`pip stderr: ${data}`);
-    // });
-
-    python.on("close", (code) => {
-      if (code === 0) {
-        vscode.window.showInformationMessage(`模块 ${moduleName} 下载成功`);
-
-        // 返回module名字和版本号
-        if (fs.existsSync(modulePath)) {
-          const moduleFiles = fs.readdirSync(modulePath);
-          const downloadFile = moduleFiles.find(
-            (file) =>
-              file.startsWith(moduleName.toLowerCase()) &&
-              file.endsWith(".whl"),
+      if (fs.existsSync(modulePath)) {
+        const moduleFiles = fs.readdirSync(modulePath);
+        const downloadFile = moduleFiles.find(
+          (file) =>
+            file.toLowerCase().startsWith(moduleName.toLowerCase()) &&
+            file.endsWith(".whl"),
+        );
+        console.log("downloadFile", downloadFile);
+        if (downloadFile) {
+          const versionMatch = downloadFile.match(
+            /^[^-]+-([^-]+)(?:-.*)?\.(?:whl|tar\.gz)$/,
           );
-          console.log("downloadFile", downloadFile);
-          if (downloadFile) {
-            // 从 wheel 文件名解析版本
-            const versionMatch = downloadFile.match(
-              /^[^-]+-([^-]+)(?:-.*)?\.(?:whl|tar\.gz)$/,
-            );
-            if (versionMatch) {
-              resolve(`${moduleName}==${versionMatch[1]}`);
-              return;
-            } else {
-              console.log("无法从 wheel 文件名中解析版本");
-              reject(new Error("无法从 wheel 文件名中解析版本"));
-              return;
-            }
-          } else {
-            reject(new Error("无法找到下载的模块文件"));
+          if (versionMatch) {
+            resolve(`${moduleName}==${versionMatch[1]}`);
             return;
           }
+          console.log("无法从 wheel 文件名中解析版本");
+          reject(new Error("无法从 wheel 文件名中解析版本"));
+          return;
         }
-      } else {
-        const errorMsg = stderrData || `进程退出码: ${code}`;
-        vscode.window.showErrorMessage(
-          `模块 ${moduleName} 下载失败: ${errorMsg}`,
-        );
+      }
+      reject(new Error("无法找到下载的模块文件"));
+    };
+
+    const runPipDownload = (index: number, lastError = "") => {
+      const candidate = pipCommands[index];
+      if (!candidate) {
+        const errorMsg = lastError || "未找到可用的 pip 命令";
+        vscode.window.showErrorMessage(`模块 ${moduleName} 下载失败: ${errorMsg}`);
         reject(new Error(errorMsg));
         return;
       }
-    });
 
-    python.on("error", (err) => {
-      vscode.window.showErrorMessage(`无法启动 pip 进程: ${err.message}`);
-      reject(err);
-    });
+      const python = spawn(candidate.command, candidate.args);
+      let stderrData = "";
+
+      python.stderr.on("data", (data) => {
+        stderrData += data.toString();
+        console.error(`pip stderr: ${data}`);
+      });
+
+      python.on("close", (code) => {
+        if (code === 0) {
+          finishDownload();
+          return;
+        }
+        runPipDownload(index + 1, stderrData || `进程退出码: ${code}`);
+      });
+
+      python.on("error", (err) => {
+        runPipDownload(index + 1, err.message);
+      });
+    };
+
+    runPipDownload(0);
   });
 }
 /**

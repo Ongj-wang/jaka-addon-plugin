@@ -222,8 +222,12 @@ function findPythonFilesExcludingInit(folderPath: string): string[] {
         entry.name.endsWith(".py") &&
         entry.name !== "__init__.py"
       ) {
-        // 将文件相对于工作区的路径加入结果数组
-        pythonFiles.push(fullPath.replace(rootPath, ".").replace(/\\/g, "/"));
+        // 将文件相对于工作区的 POSIX 路径加入结果数组，供 Linux 端 setup.py 使用
+        const relativePath = path
+          .relative(rootPath, fullPath)
+          .split(path.sep)
+          .join("/");
+        pythonFiles.push(`./${relativePath}`);
       }
       // 如果是目录，则递归搜索（可选）
       else if (entry.isDirectory()) {
@@ -310,15 +314,30 @@ function copyDirectory(src: string, dest: string) {
 // 判断是否应该跳过的文件夹或文件
 function shouldSkipEntry(name: string): boolean {
   // 跳过特定的文件夹
-  const skipDirs = [".git", "__pycache__", ".svn", ".hg", "node_modules"];
-  return skipDirs.includes(name);
+  const skipDirs = [
+    ".git",
+    "__pycache__",
+    ".svn",
+    ".hg",
+    "node_modules",
+    "__MACOSX",
+  ];
+  return skipDirs.includes(name) || name.startsWith("._");
 }
 
 // 判断是否应该跳过的文件
 function shouldSkipFile(name: string): boolean {
   // 跳过特定的文件类型
   const skipExtensions = [".pyc", ".pyo", ".pyd", ".DS_Store", "Thumbs.db"];
-  return skipExtensions.some((ext) => name.endsWith(ext));
+  return (
+    name.startsWith("._") || skipExtensions.some((ext) => name.endsWith(ext))
+  );
+}
+
+function getRemoteDir(packageData: { remote?: string; remote_dir?: string }) {
+  const remoteDir =
+    packageData.remote_dir || packageData.remote || "/home/jakauser/";
+  return remoteDir.endsWith("/") ? remoteDir : `${remoteDir}/`;
 }
 
 /**
@@ -368,7 +387,7 @@ async function uploadAddonToRobotViaSFTP(
   }
 
   const localFilePath = path.join(outputDir, latestFile);
-  const remoteFilePath = `${packageData.remote}${latestFile}`;
+  const remoteFilePath = `${getRemoteDir(packageData)}${latestFile}`;
 
   // 执行上传
   try {
@@ -730,14 +749,18 @@ async function downloadFileFromRobotViaSFTP(
       "utf-8",
     ),
   );
-  const remoteFilePath = `${packageDate.remote}${packageDate.name}/`;
+  const remoteFilePath = `${getRemoteDir(packageDate)}${packageDate.name}/`;
   const format_files = fs
     .readFileSync(
       path.join(workspaceFolders[0].uri.fsPath, "transform_files.txt"),
       "utf-8",
     )
     .split(",");
-  const packageDir = `${workspaceFolders[0].uri.fsPath}\\${packageDate.output}\\${packageDate.name}`;
+  const packageDir = path.join(
+    workspaceFolders[0].uri.fsPath,
+    packageDate.output,
+    packageDate.name,
+  );
 
   try {
     vscode.window.showInformationMessage(`正在连接到 ${robotIP}...`);
@@ -757,10 +780,12 @@ async function downloadFileFromRobotViaSFTP(
     for (const file of format_files) {
       const match = file.match(/(\w+)\.py\n?$/);
       const so_path = `${remoteFilePath}${match ? match[1] : ""}.so`;
-      fs.rmSync(file.replace(".", packageDir));
+      const localPyPath = path.join(packageDir, file.replace(/^\.\//, ""));
+      const localSoPath = localPyPath.replace(/\.py\n?$/, ".so");
+      fs.rmSync(localPyPath, { force: true });
       await sftp.get(
         so_path,
-        file.replace(".", packageDir).replace(/\.py\n?/, ".so"),
+        localSoPath,
       );
     }
 
