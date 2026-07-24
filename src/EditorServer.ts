@@ -4,6 +4,12 @@ import * as path from "path";
 import * as url from "url";
 
 let lastRequestTime = Date.now();
+
+/** 获取最后一次请求时间（供外部调用，避免值拷贝问题） */
+function getLastRequestTime(): number {
+  return lastRequestTime;
+}
+
 function createServer(webDir: string, workspaceFolder: string, port: number) {
   return http.createServer((req, res) => {
     const reqUrl = url.parse(req.url!, true);
@@ -15,6 +21,14 @@ function createServer(webDir: string, workspaceFolder: string, port: number) {
     res.setHeader("Vary", "Origin");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+    if (pathname === "/ping") {
+      // 心跳端点：前端每2秒发送一次，用于检测页面是否仍在开启
+      lastRequestTime = Date.now();
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+      return;
+    }
 
     if (req.method === "OPTIONS") {
       res.writeHead(204);
@@ -65,7 +79,8 @@ function serveStaticFile(
   pathname: string,
   res: http.ServerResponse,
 ) {
-  let filePath = pathname === "/" ? "/index.html" : decodeURIComponent(pathname);
+  let filePath =
+    pathname === "/" ? "/index.html" : decodeURIComponent(pathname);
   filePath = path.join(root, filePath);
 
   // 安全检查
@@ -105,4 +120,4 @@ function serveStaticFile(
   });
 }
 // 导出类和函数以便在其他文件中使用
-export { createServer, lastRequestTime };
+export { createServer, getLastRequestTime };

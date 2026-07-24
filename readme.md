@@ -8,7 +8,7 @@ JAKA Addon Plugin Development Tool - Simplifies the creation, building, and mana
 - **Configuration File Generation** - Automatically create and format .settings.json configuration files.
 - **File Management** - Smart enable/disable file exclusion rules.
 - **Build Support** - Supports building JAKA AddOn projects.
-- **Module Copying** - Adds Python module support.
+- **Dependency Management** - Download Python modules with smart version comparison, deduplication, and automatic upgrades.
 
 ## Usage
 
@@ -19,7 +19,8 @@ Open the command palette with Ctrl+Shift+P and enter the following commands:
 - `addon-plugin:make new addon` - Create a new AddOn plugin project.
 - `addon-plugin:build addon` - Build the development version of the addon.
 - `addon-plugin:make custom programs` - Build custom instructions.
-- `addon-plugin:add anti module` - Add Python auxiliary open modules.
+- `addon-plugin:open scratch editor` - Open a visual Scratch-based block editor for creating command blocks.
+- `addon-plugin:download requirements` - Download Python module dependencies. Supports multiple modules separated by spaces. Automatically compares versions, skips already up-to-date dependencies, and upgrades outdated ones.
 
 ### Quick Start
 
@@ -38,5 +39,5 @@ MIT License
 
 ## Support
 
-Repository URL: https://gitee.com/wanghonejie/jaka-addon-plugin.git
+Repository URL: https://github.com/Ongj-wang/jaka-addon-plugin.git
 Report Issues: Through the repository's Issues page

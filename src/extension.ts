@@ -7,7 +7,7 @@ import * as vscode from "vscode";
 import { buildAddon, release_build } from "./buildMethods";
 import { drawCommandBlock } from "./CommandGenerate";
 import { readIniFile, writeIniFile } from "./configMethods";
-import { createServer, lastRequestTime } from "./EditorServer";
+import { createServer, getLastRequestTime } from "./EditorServer";
 import { CustomCommandBlock } from "./types";
 
 let server: http.Server;
@@ -89,22 +89,22 @@ export function activate(context: vscode.ExtensionContext) {
       // 创建 HTTP 服务器（静态 + API）
       server = createServer(webDir, workspaceFolder, port);
 
-      // 定时器：每分钟检查一次是否超时
+      // 定时器：每2秒检查一次是否超时（前端每2秒发送心跳，4秒无心跳则关闭）
       timeoutInterval = setInterval(() => {
-        const timeoutMinutes: number = 10;
+        const timeoutMs = 4000; // 4秒无心跳则关闭
         const currentTime = Date.now();
-        if (currentTime - lastRequestTime > timeoutMinutes * 60 * 1000) {
-          // 超过设定时间未收到请求，关闭服务器
+        if (currentTime - getLastRequestTime() > timeoutMs) {
+          // 超过设定时间未收到心跳，关闭服务器
           vscode.window.showInformationMessage(
-            `服务器因长时间无请求已自动关闭（超时时间：${timeoutMinutes}分钟）`,
+            "Scratch 编辑器页面已关闭，服务器已自动停止",
           );
           server.close();
           if (timeoutInterval != null) {
-            clearInterval(timeoutInterval); // 清除定时器
+            clearInterval(timeoutInterval);
           }
           timeoutInterval = null;
         }
-      }, 5 * 1000); // 每分钟检查一次
+      }, 2000); // 每2秒检查一次
 
       server.listen(port, "127.0.0.1", () => {
         vscode.env.openExternal(vscode.Uri.parse(`http://localhost:${port}`));
@@ -121,15 +121,16 @@ export function activate(context: vscode.ExtensionContext) {
       }
       const rootPath = workspaceFolders[0].uri.fsPath;
 
-      // 要求用户输入希望下载的python moudle名字
+      // 要求用户输入希望下载的python moudle名字（支持空格分隔多个）
       const MoudleNameInput = await vscode.window.showInputBox({
-        placeHolder: `Please enter module name`,
+        placeHolder: `Please enter module name(s), separated by spaces`,
         // 请输入项目名称(默认使用当前工作区名称)",
         ignoreFocusOut: true,
       });
       if (!MoudleNameInput) {
         return;
       }
+      const moduleNames = MoudleNameInput.trim().split(/\s+/).filter(Boolean);
       let RequirementPath = "";
       const config = await readAddonConfig(rootPath);
       if (Object.keys(config).includes("Requirement")) {
@@ -145,41 +146,107 @@ export function activate(context: vscode.ExtensionContext) {
       if (!fs.existsSync(RequirementPath)) {
         fs.mkdirSync(RequirementPath);
       }
-      let moduleList = "";
+      // 读取已有的 requirement.list，构建现有依赖映射表
+      const requirementListPath = path.join(rootPath, config.Requirement.list);
+      const existingModules = readRequirementList(requirementListPath);
+      // 用 Map 记录合并后的所有依赖（moduleName -> version）
+      const mergedModules = new Map<string, string>(existingModules);
+
       // 将python moudle下载到requirement文件夹
       vscode.window.showInformationMessage("获取依赖项...");
-      const antiModule = await getAntiModule(
-        MoudleNameInput.toLowerCase(),
-        RequirementPath,
-      );
-      let targetModule = "";
-      if (antiModule) {
-        if (MoudleNameInput.toLowerCase() == "flaskresponse") {
-          targetModule = "flask";
+      for (const inputName of moduleNames) {
+        const antiModule = await getAntiModule(
+          inputName.toLowerCase(),
+          RequirementPath,
+        );
+        let targetModule = "";
+        if (antiModule) {
+          if (inputName.toLowerCase() == "flaskresponse") {
+            targetModule = "flask";
+          } else {
+            targetModule = "";
+          }
+          // antiModule 格式: Name==version
+          const [antiModName, antiModVersion] = antiModule.split("==");
+          const existingVersion = mergedModules.get(antiModName);
+          if (existingVersion && existingVersion === antiModVersion) {
+            vscode.window.showInformationMessage(
+              `模块 ${antiModName} ${antiModVersion} 已是当前版本，跳过`,
+            );
+          } else if (
+            existingVersion &&
+            compareVersions(antiModVersion, existingVersion) < 0
+          ) {
+            vscode.window.showInformationMessage(
+              `模块 ${antiModName} 现有版本 ${existingVersion} 更新，保留现有版本`,
+            );
+          } else {
+            if (existingVersion) {
+              removeOldModuleFiles(RequirementPath, antiModName);
+              vscode.window.showInformationMessage(
+                `模块 ${antiModName} 从 ${existingVersion} 升级到 ${antiModVersion}`,
+              );
+            }
+            mergedModules.set(antiModName, antiModVersion);
+          }
         } else {
-          targetModule = "";
+          // 普通模块（非 anti-module），直接作为下载目标
+          targetModule = inputName;
         }
-      } else {
-        targetModule = MoudleNameInput;
-      }
-      if (targetModule) {
-        const deps = await getModuleDependencies(targetModule);
-        deps.push(targetModule);
-        console.log(`deps : ${deps}`);
+        if (targetModule) {
+          const deps = await getModuleDependencies(targetModule);
+          deps.push(targetModule);
 
-        for (const dep of deps) {
-          const moduleInfo = await downloadModule(dep, RequirementPath);
-          if (moduleInfo) {
-            moduleList += `${moduleInfo}\n`;
+          for (const dep of deps) {
+            const existingVersion = mergedModules.get(dep);
+            if (existingVersion) {
+              // 已存在：尝试下载以检查是否有更新版本
+              const moduleInfo = await downloadModule(
+                dep,
+                RequirementPath,
+                true,
+              );
+              if (moduleInfo) {
+                const [, newVersion] = moduleInfo.split("==");
+                const cmp = compareVersions(newVersion, existingVersion);
+                if (cmp === 0) {
+                  vscode.window.showInformationMessage(
+                    `模块 ${dep} ${existingVersion} 已是当前版本，跳过`,
+                  );
+                } else if (cmp > 0) {
+                  removeOldModuleFiles(RequirementPath, dep, newVersion);
+                  mergedModules.set(dep, newVersion);
+                  vscode.window.showInformationMessage(
+                    `模块 ${dep} 已从 ${existingVersion} 升级到 ${newVersion}`,
+                  );
+                } else {
+                  // 新版本更旧，删除刚下载的文件，保留现有版本
+                  removeOldModuleFiles(RequirementPath, dep, existingVersion);
+                  vscode.window.showInformationMessage(
+                    `模块 ${dep} 现有版本 ${existingVersion} 更新，保留现有版本`,
+                  );
+                }
+              }
+            } else {
+              // 新模块，直接下载
+              const moduleInfo = await downloadModule(dep, RequirementPath);
+              if (moduleInfo) {
+                const [, newVersion] = moduleInfo.split("==");
+                mergedModules.set(dep, newVersion);
+              }
+            }
           }
         }
       }
-      if (antiModule) {
-        moduleList += `${antiModule}\n`;
-      }
-      const requirementListPath = path.join(rootPath, config.Requirement.list);
-      fs.appendFileSync(requirementListPath, moduleList, "utf-8");
-      vscode.window.showInformationMessage(`依赖${MoudleNameInput}下载完成！`);
+      // 将合并后的完整依赖列表写回 requirement.list（覆盖写入）
+      const moduleListContent =
+        Array.from(mergedModules.entries())
+          .map(([name, version]) => `${name}==${version}`)
+          .join("\n") + "\n";
+      fs.writeFileSync(requirementListPath, moduleListContent, "utf-8");
+      vscode.window.showInformationMessage(
+        `依赖下载完成！共 ${mergedModules.size} 个依赖已记录`,
+      );
     },
   );
   context.subscriptions.push(
@@ -833,10 +900,11 @@ function changeJson2Addonpro(command: Array<CustomCommandBlock>): string {
 function downloadModule(
   moduleName: string,
   modulePath: string,
+  forceDownload: boolean = false,
 ): Promise<string> {
   return new Promise(async (resolve, reject) => {
-    // 查询modulePath中是否已存在模块包
-    if (fs.existsSync(modulePath)) {
+    // 查询modulePath中是否已存在模块包（forceDownload 模式下跳过检查，强制重新下载）
+    if (!forceDownload && fs.existsSync(modulePath)) {
       const moduleFiles = fs.readdirSync(modulePath);
       if (moduleFiles.some((file) => file.startsWith(moduleName))) {
         vscode.window.showInformationMessage(`模块 ${moduleName} 已存在`);
@@ -880,24 +948,36 @@ function downloadModule(
 
       if (fs.existsSync(modulePath)) {
         const moduleFiles = fs.readdirSync(modulePath);
-        const downloadFile = moduleFiles.find(
+        // 找到本次下载的新 wheel 文件（排除可能存在的旧版本）
+        const downloadFiles = moduleFiles.filter(
           (file) =>
             file.toLowerCase().startsWith(moduleName.toLowerCase()) &&
             file.endsWith(".whl"),
         );
-        console.log("downloadFile", downloadFile);
-        if (downloadFile) {
-          const versionMatch = downloadFile.match(
-            /^[^-]+-([^-]+)(?:-.*)?\.(?:whl|tar\.gz)$/,
-          );
-          if (versionMatch) {
-            resolve(`${moduleName}==${versionMatch[1]}`);
-            return;
-          }
-          console.log("无法从 wheel 文件名中解析版本");
-          reject(new Error("无法从 wheel 文件名中解析版本"));
+        if (downloadFiles.length === 0) {
+          reject(new Error("无法找到下载的模块文件"));
           return;
         }
+        // 若有多个同模块 wheel 文件（升级场景），取最新的（修改时间最晚）
+        const downloadFile =
+          downloadFiles.length === 1
+            ? downloadFiles[0]
+            : downloadFiles.sort((a, b) => {
+                const statA = fs.statSync(path.join(modulePath, a));
+                const statB = fs.statSync(path.join(modulePath, b));
+                return statB.mtimeMs - statA.mtimeMs;
+              })[0];
+        console.log("downloadFile", downloadFile);
+        const versionMatch = downloadFile.match(
+          /^[^-]+-([^-]+)(?:-.*)?\.(?:whl|tar\.gz)$/,
+        );
+        if (versionMatch) {
+          resolve(`${moduleName}==${versionMatch[1]}`);
+          return;
+        }
+        console.log("无法从 wheel 文件名中解析版本");
+        reject(new Error("无法从 wheel 文件名中解析版本"));
+        return;
       }
       reject(new Error("无法找到下载的模块文件"));
     };
@@ -906,7 +986,9 @@ function downloadModule(
       const candidate = pipCommands[index];
       if (!candidate) {
         const errorMsg = lastError || "未找到可用的 pip 命令";
-        vscode.window.showErrorMessage(`模块 ${moduleName} 下载失败: ${errorMsg}`);
+        vscode.window.showErrorMessage(
+          `模块 ${moduleName} 下载失败: ${errorMsg}`,
+        );
         reject(new Error(errorMsg));
         return;
       }
@@ -1247,4 +1329,86 @@ async function getAntiModule(
     return;
   });
 }
+/**
+ * 解析语义版本号字符串为数字数组，用于版本比较
+ * 支持 "3.1.2"、"1.0"、"2" 等格式，非数字部分解析为 0
+ */
+function parseVersion(versionStr: string): number[] {
+  return versionStr.split(".").map((part) => {
+    const num = parseInt(part, 10);
+    return isNaN(num) ? 0 : num;
+  });
+}
+
+/**
+ * 比较两个语义版本号
+ * @returns -1（v1 < v2）、0（相等）、1（v1 > v2）
+ */
+function compareVersions(v1: string, v2: string): number {
+  const parts1 = parseVersion(v1);
+  const parts2 = parseVersion(v2);
+  const maxLen = Math.max(parts1.length, parts2.length);
+  for (let i = 0; i < maxLen; i++) {
+    const p1 = parts1[i] ?? 0;
+    const p2 = parts2[i] ?? 0;
+    if (p1 > p2) return 1;
+    if (p1 < p2) return -1;
+  }
+  return 0;
+}
+
+/**
+ * 读取 requirement.list 文件，解析为模块名->版本号的映射表
+ * 文件格式：每行 "module==version"
+ */
+function readRequirementList(filePath: string): Map<string, string> {
+  const result = new Map<string, string>();
+  if (!fs.existsSync(filePath)) {
+    return result;
+  }
+  const content = fs.readFileSync(filePath, "utf-8");
+  const lines = content.split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const match = trimmed.match(/^([^=]+)==(.+)$/);
+    if (match) {
+      result.set(match[1], match[2]);
+    }
+  }
+  return result;
+}
+
+/**
+ * 删除模块的旧版 wheel 文件，保留指定版本的 wheel
+ * @param modulePath 模块目录
+ * @param moduleName 模块名
+ * @param keepVersion 要保留的版本号（可选，不传则删除所有该模块的 wheel 文件）
+ */
+function removeOldModuleFiles(
+  modulePath: string,
+  moduleName: string,
+  keepVersion?: string,
+): void {
+  if (!fs.existsSync(modulePath)) return;
+  const files = fs.readdirSync(modulePath);
+  for (const file of files) {
+    if (
+      file.toLowerCase().startsWith(moduleName.toLowerCase()) &&
+      file.endsWith(".whl")
+    ) {
+      if (keepVersion) {
+        // 保留包含指定版本的 wheel 文件，删除其他
+        if (!file.includes(`-${keepVersion}-`)) {
+          fs.unlinkSync(path.join(modulePath, file));
+          vscode.window.showInformationMessage(`已删除旧版文件: ${file}`);
+        }
+      } else {
+        // 删除所有该模块的 wheel 文件
+        fs.unlinkSync(path.join(modulePath, file));
+      }
+    }
+  }
+}
+
 export function deactivate() {}

@@ -12,7 +12,15 @@ import {
   Table,
 } from "ant-design-vue";
 import type { SelectValue } from "ant-design-vue/es/select";
-import { defineComponent, nextTick, onMounted, reactive, ref, watch } from "vue";
+import {
+  defineComponent,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from "vue";
 
 import {
   addField,
@@ -26,7 +34,6 @@ import {
 } from "../application/block.application";
 import type { Block, BlockTypeOption, FieldType } from "../domain/block.types";
 import { blocklyService } from "../services/blockly.service";
-
 
 // options
 const blockTypeOptions: Record<string, BlockTypeOption> = {
@@ -56,7 +63,8 @@ const booleanDefaultOptions = [
   { label: "true", value: "true" },
 ];
 const identifierPattern = /^[A-Za-z0-9_]+$/;
-const sanitizeIdentifier = (value: string) => value.replace(/[^A-Za-z0-9_]/g, "");
+const sanitizeIdentifier = (value: string) =>
+  value.replace(/[^A-Za-z0-9_]/g, "");
 
 export default defineComponent({
   setup() {
@@ -167,10 +175,7 @@ export default defineComponent({
             }
 
             return (
-              <Input
-                v-model:value={record.defaultValue}
-                class="w-[160px]"
-              />
+              <Input v-model:value={record.defaultValue} class="w-[160px]" />
             );
           }
           if (!record.defaultValue || typeof record.defaultValue !== "object") {
@@ -246,7 +251,9 @@ export default defineComponent({
         title: "类型",
         key: "selectedType",
         customRender: ({ record }: any) =>
-          blockTypeOptions[record.selectedType as string]?.label ?? record.selectedType ?? "-",
+          blockTypeOptions[record.selectedType as string]?.label ??
+          record.selectedType ??
+          "-",
       },
       {
         title: "语言",
@@ -378,12 +385,17 @@ export default defineComponent({
 
     const onSave = () => {
       if (!identifierPattern.test(block.name)) {
-        Modal.error({ title: "保存失败", content: "名称只能包含英文、数字和下划线" });
+        Modal.error({
+          title: "保存失败",
+          content: "名称只能包含英文、数字和下划线",
+        });
         return;
       }
 
       const invalidField = block.fields.find(
-        (field) => typeof field.label !== "object" && !identifierPattern.test(field.label),
+        (field) =>
+          typeof field.label !== "object" &&
+          !identifierPattern.test(field.label),
       );
       if (invalidField) {
         Modal.error({
@@ -430,10 +442,12 @@ export default defineComponent({
             </pre>
           </div>
         ),
-        onOk: async() => {
+        onOk: async () => {
           const nextBlock = cloneBlock(block);
           const nextList = [...blockList.value];
-          const existingIndex = nextList.findIndex((item) => item.id === nextBlock.id);
+          const existingIndex = nextList.findIndex(
+            (item) => item.id === nextBlock.id,
+          );
           if (existingIndex >= 0) {
             nextList.splice(existingIndex, 1, nextBlock);
           } else {
@@ -443,11 +457,14 @@ export default defineComponent({
           // 向本地服务器下发post请求
           try {
             await saveBlockList(nextList, "数据已成功发送到服务器");
-          }catch (error){
-            console.log("保存失败:",error);
-            Modal.error({title:"保存失败",content:"请检查网络或服务器状态"})
+          } catch (error) {
+            console.log("保存失败:", error);
+            Modal.error({
+              title: "保存失败",
+              content: "请检查网络或服务器状态",
+            });
           }
-        }
+        },
       });
     };
 
@@ -459,7 +476,9 @@ export default defineComponent({
         okButtonProps: { danger: true },
         cancelText: "取消",
         onOk: async () => {
-          const nextList = blockList.value.filter((item) => item.id !== targetBlock.id);
+          const nextList = blockList.value.filter(
+            (item) => item.id !== targetBlock.id,
+          );
 
           try {
             await saveBlockList(nextList, "块已删除");
@@ -478,7 +497,10 @@ export default defineComponent({
             }
           } catch (error) {
             console.log("删除失败:", error);
-            Modal.error({ title: "删除失败", content: "请检查网络或服务器状态" });
+            Modal.error({
+              title: "删除失败",
+              content: "请检查网络或服务器状态",
+            });
           }
         },
       });
@@ -526,30 +548,56 @@ export default defineComponent({
       { deep: true },
     );
 
+    let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
     onMounted(() => {
       // 向本地服务器发送get请求获取指令块参数
       fetch("http://localhost:8080/blocks")
-      .then(async (response) => {
-        console.log("服务器响应：",response);
-        if (!response.ok){
-          throw new Error(`HTTP eror! status: ${response.status}`);
-        }
-        const data:Block[] = await response.json();
-        console.log("获取到的指令块参数：",data);
-        if (Array.isArray(data)) {
-          blockList.value = data.map((item) => cloneBlock(item));
-        } else {
-          console.warn("返回数据格式不正确，无法初始化指令块列表");
-        }
-      })
-      .catch(error => {
-        console.error("获取指令块参数失败：", error);
-      });
+        .then(async (response) => {
+          console.log("服务器响应：", response);
+          if (!response.ok) {
+            throw new Error(`HTTP eror! status: ${response.status}`);
+          }
+          const data: Block[] = await response.json();
+          console.log("获取到的指令块参数：", data);
+          if (Array.isArray(data)) {
+            blockList.value = data.map((item) => cloneBlock(item));
+          } else {
+            console.warn("返回数据格式不正确，无法初始化指令块列表");
+          }
+        })
+        .catch((error) => {
+          console.error("获取指令块参数失败：", error);
+        });
+
+      // 启动心跳：每2秒向服务器发送 ping，保持服务器存活
+      // 服务器在4秒内未收到心跳则自动关闭
+      fetch("http://localhost:8080/ping"); // 立即发送第一次心跳
+      heartbeatTimer = setInterval(() => {
+        fetch("http://localhost:8080/ping").catch(() => {
+          // 服务器已关闭时忽略错误
+        });
+      }, 2000);
+    });
+
+    onBeforeUnmount(() => {
+      // 页面关闭时停止心跳，服务器将在4秒后自动关闭
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+      }
     });
 
     return () => (
       <div class="space-y-[10px]">
-        <Card title="指令块列表"  extra={<Button type="primary" onClick={onCreateBlock}>创建新块</Button>}>
+        <Card
+          title="指令块列表"
+          extra={
+            <Button type="primary" onClick={onCreateBlock}>
+              创建新块
+            </Button>
+          }
+        >
           <Table
             dataSource={blockList.value}
             columns={blockListColumns}
