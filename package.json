@@ -58,5 +58,5 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./"
   },
-  "version": "1.5.3"
+  "version": "1.5.4"
 }

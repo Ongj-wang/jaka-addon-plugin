@@ -119,5 +119,42 @@ function serveStaticFile(
     }
   });
 }
+/**
+ * 在 127.0.0.1 上监听端口，若端口已被占用则自动顺延尝试后续端口
+ * （8080 常被 IDE、CEF 客户端等占用，避免直接失败）
+ * @returns 实际监听成功的端口
+ */
+function listenWithFallback(
+  server: http.Server,
+  preferredPort: number,
+  maxTry: number = 20,
+): Promise<number> {
+  return new Promise((resolve, reject) => {
+    let currentPort = preferredPort;
+    let remaining = maxTry;
+
+    const tryListen = () => {
+      const onError = (err: NodeJS.ErrnoException) => {
+        server.removeListener("listening", onListening);
+        if (err.code === "EADDRINUSE" && --remaining > 0) {
+          currentPort += 1;
+          tryListen();
+          return;
+        }
+        reject(err);
+      };
+      const onListening = () => {
+        server.removeListener("error", onError);
+        resolve(currentPort);
+      };
+      server.once("error", onError);
+      server.once("listening", onListening);
+      server.listen(currentPort, "127.0.0.1");
+    };
+
+    tryListen();
+  });
+}
+
 // 导出类和函数以便在其他文件中使用
-export { createServer, getLastRequestTime };
+export { createServer, getLastRequestTime, listenWithFallback };

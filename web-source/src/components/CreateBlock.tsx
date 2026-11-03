@@ -1,36 +1,36 @@
 import { GlobalOutlined } from "@ant-design/icons-vue";
 import {
-  Button,
-  Card,
-  Empty,
-  Input,
-  Modal,
-  Popover,
-  Select,
-  Space,
-  Switch,
-  Table,
+    Button,
+    Card,
+    Empty,
+    Input,
+    Modal,
+    Popover,
+    Select,
+    Space,
+    Switch,
+    Table,
 } from "ant-design-vue";
 import type { SelectValue } from "ant-design-vue/es/select";
 import {
-  defineComponent,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-  watch,
+    defineComponent,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    reactive,
+    ref,
+    watch,
 } from "vue";
 
 import {
-  addField,
-  applyType,
-  buildBlocklyJson,
-  createDefaultBlock,
-  deleteField,
-  moveField,
-  setFieldType,
-  showLang,
+    addField,
+    applyType,
+    buildBlocklyJson,
+    createDefaultBlock,
+    deleteField,
+    moveField,
+    setFieldType,
+    showLang,
 } from "../application/block.application";
 import type { Block, BlockTypeOption, FieldType } from "../domain/block.types";
 import { blocklyService } from "../services/blockly.service";
@@ -364,7 +364,7 @@ export default defineComponent({
     };
 
     const saveBlockList = async (nextList: Block[], successMessage: string) => {
-      const response = await fetch("http://localhost:8080/blocks", {
+      const response = await fetch("/blocks", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -552,7 +552,7 @@ export default defineComponent({
 
     onMounted(() => {
       // 向本地服务器发送get请求获取指令块参数
-      fetch("http://localhost:8080/blocks")
+      fetch("/blocks")
         .then(async (response) => {
           console.log("服务器响应：", response);
           if (!response.ok) {
@@ -572,9 +572,9 @@ export default defineComponent({
 
       // 启动心跳：每2秒向服务器发送 ping，保持服务器存活
       // 服务器在4秒内未收到心跳则自动关闭
-      fetch("http://localhost:8080/ping"); // 立即发送第一次心跳
+      fetch("/ping"); // 立即发送第一次心跳
       heartbeatTimer = setInterval(() => {
-        fetch("http://localhost:8080/ping").catch(() => {
+        fetch("/ping").catch(() => {
           // 服务器已关闭时忽略错误
         });
       }, 2000);

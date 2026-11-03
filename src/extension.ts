@@ -7,7 +7,11 @@ import * as vscode from "vscode";
 import { buildAddon, release_build } from "./buildMethods";
 import { drawCommandBlock } from "./CommandGenerate";
 import { readIniFile, writeIniFile } from "./configMethods";
-import { createServer, getLastRequestTime } from "./EditorServer";
+import {
+  createServer,
+  getLastRequestTime,
+  listenWithFallback,
+} from "./EditorServer";
 import { CustomCommandBlock } from "./types";
 
 let server: http.Server;
@@ -72,7 +76,8 @@ export function activate(context: vscode.ExtensionContext) {
   const StartScratchEditor = vscode.commands.registerCommand(
     "extension.open_scratch_editor",
     async () => {
-      const port = 8080;
+      // 首选端口，被占用时会自动顺延
+      const preferredPort = 8080;
       const webDir = path.join(context.extensionPath, "web");
 
       // 获取当前工作区根路径（用于读写 CustomCommand.json）
@@ -83,11 +88,30 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
-      // 关闭旧服务器（避免端口占用）
-      if (server) server.close();
+      // 关闭旧服务器（等待真正释放端口，避免下次启动误判为端口占用）
+      if (server && server.listening) {
+        const oldServer = server;
+        await new Promise<void>((resolve) => oldServer.close(() => resolve()));
+      }
+      if (timeoutInterval != null) {
+        clearInterval(timeoutInterval);
+        timeoutInterval = null;
+      }
 
       // 创建 HTTP 服务器（静态 + API）
-      server = createServer(webDir, workspaceFolder, port);
+      server = createServer(webDir, workspaceFolder, preferredPort);
+
+      // 启动服务：端口被占用时自动顺延，避免打开到其他程序的页面
+      let actualPort: number;
+      try {
+        actualPort = await listenWithFallback(server, preferredPort);
+      } catch (error) {
+        server.close();
+        vscode.window.showErrorMessage(
+          `Scratch 编辑器服务启动失败：端口 ${preferredPort} 及其后 20 个端口均不可用（${error}）`,
+        );
+        return;
+      }
 
       // 定时器：每2秒检查一次是否超时（前端每2秒发送心跳，4秒无心跳则关闭）
       timeoutInterval = setInterval(() => {
@@ -106,9 +130,9 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }, 2000); // 每2秒检查一次
 
-      server.listen(port, "127.0.0.1", () => {
-        vscode.env.openExternal(vscode.Uri.parse(`http://localhost:${port}`));
-      });
+      vscode.env.openExternal(
+        vscode.Uri.parse(`http://127.0.0.1:${actualPort}`),
+      );
     },
   );
   const DownloadRequirements = vscode.commands.registerCommand(
